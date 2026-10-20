@@ -25,19 +25,31 @@ git push origin v1.0.0
 6. достаёт раздел `[1.0.0]` из `CHANGELOG.md` скриптом
    `scripts/release-notes.sh`; если раздела нет — собирает список коммитов из
    git;
-7. добавляет в конец заметок инструкцию по установке и SHA-256 архива;
+7. добавляет в конец заметок инструкцию по установке, постоянную ссылку и
+   SHA-256 архива;
 8. загружает `DiskScope-1.0.0-macos-universal.zip` и `SHA256SUMS.txt` в
-   артефакты workflow;
-9. создаёт (или обновляет) GitHub Release с этими файлами и описанием.
+   артефакты workflow, а `DiskScope-macos-universal.zip` — в релиз;
+9. создаёт (или обновляет) GitHub Release с описанием и стабильным архивом.
 
 Тег `v1.0.0-beta.1` автоматически помечается как prerelease, потому что
 содержит дефис.
 
 ### Что попадает в Release
 
-- `DiskScope-<version>-macos-universal.zip` — приложение, подписанное ad-hoc;
+- `DiskScope-macos-universal.zip` — приложение, подписанное ad-hoc;
 - `SHA256SUMS.txt` — контрольная сумма архива;
 - текст из `CHANGELOG.md` + инструкция по установке.
+
+Версионированный `DiskScope-<version>-macos-universal.zip` остаётся в
+артефактах workflow.
+
+### Постоянная ссылка
+
+https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip
+
+Она всегда указывает на последний **стабильный** релиз (prerelease-теги с
+дефисом в `latest` не попадают). Именно эта ссылка используется на сайте
+документации.
 
 ### Changelog
 
@@ -74,7 +86,7 @@ git push origin v1.0.0
    git add .
    git commit -m "DiskScope 1.0.0"
    git branch -M main
-   git remote add origin git@github.com:<owner>/<repo>.git
+   git remote add origin git@github.com:fso13/DiskScope.git
    git push -u origin main
    ```
 
@@ -86,8 +98,8 @@ git push origin v1.0.0
    включения.
 3. Запушьте изменения в `main` или запустите workflow вручную:
    **Actions → Documentation → Run workflow**.
-4. Адрес сайта появится в выводе job `deploy` и в настройках Pages. Обычно это
-   `https://<owner>.github.io/<repo>/`.
+4. Адрес сайта появится в выводе job `deploy` и в настройках Pages:
+   https://fso13.github.io/DiskScope/.
 
 ### Адрес сайта
 

@@ -4,10 +4,12 @@
 Показывает, что именно занимает место: тепловая карта папок, крупнейшие файлы,
 распределение по типам и очистка в Корзину прямо из приложения.
 
+[Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest) · [Сайт документации](https://fso13.github.io/DiskScope/) · [Репозиторий](https://github.com/fso13/DiskScope)
+
 ![Карта папки](snapshots/01-map-light.png)
 
-📖 Подробная документация: [docs/index.md](docs/index.md). Сайт на GitHub Pages
-собирается из тех же Markdown-файлов автоматически.
+📖 Подробная документация: [docs/index.md](docs/index.md). Опубликованный сайт —
+https://fso13.github.io/DiskScope/.
 
 ## Возможности
 
@@ -41,6 +43,10 @@
 ## Установка
 
 Требуется macOS 14+ и Xcode 15+ (проект собирается Swift Package Manager).
+
+Готовую universal-сборку (Apple Silicon + Intel) можно скачать в
+[последнем релизе](https://github.com/fso13/DiskScope/releases/latest) или по
+[прямой ссылке](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip).
 
 ```bash
 ./build.sh
@@ -147,6 +153,8 @@ build.sh         release-сборка, иконка, подпись, zip
 - [CI и релизы](docs/release.md)
 - [Ограничения](docs/limitations.md)
 
+Опубликованный сайт: [https://fso13.github.io/DiskScope/](https://fso13.github.io/DiskScope/)
+
 ![Сайт документации](snapshots/09-docs-site.png)
 
 Локально сайт поднимается так:
@@ -163,7 +171,8 @@ python3 -m venv .venv
 
 - [release.yml](.github/workflows/release.yml) — по тегу `v*`: тесты,
   universal-сборка, артефакт workflow и GitHub Release с заметками из
-  [CHANGELOG.md](CHANGELOG.md), `SHA256SUMS.txt` и zip-архивом.
+  [CHANGELOG.md](CHANGELOG.md), `SHA256SUMS.txt` и постоянным архивом
+  `DiskScope-macos-universal.zip`.
 - [pages.yml](.github/workflows/pages.yml) — сборка [mkdocs.yml](mkdocs.yml) из
   [docs/](docs/index.md) и деплой на GitHub Pages.
 
@@ -176,7 +185,10 @@ git push origin v1.0.0
 
 Для GitHub Pages один раз включите **Settings → Pages → Source: GitHub Actions**
 (встроенный `GITHUB_TOKEN` не может сделать это автоматически). Адрес сайта —
-`https://<owner>.github.io/<repo>/`.
+https://fso13.github.io/DiskScope/.
+
+Прямая ссылка на последний стабильный релиз:
+https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip
 
 Подробности, права токена и диагностика — в [docs/release.md](docs/release.md).
 

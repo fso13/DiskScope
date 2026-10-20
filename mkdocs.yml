@@ -1,11 +1,11 @@
 site_name: DiskScope
 site_description: Нативный анализатор диска для macOS — тепловая карта, крупнейшие файлы, типы и очистка в Корзину.
 site_author: DiskScope
-site_url: !ENV [MKDOCS_SITE_URL, "http://localhost:8000/"]
+site_url: !ENV [MKDOCS_SITE_URL, "https://fso13.github.io/DiskScope/"]
 
-repo_url: !ENV [MKDOCS_REPO_URL, ""]
-repo_name: !ENV [MKDOCS_REPO_NAME, "GitHub"]
-edit_uri: !ENV [MKDOCS_EDIT_URI, ""]
+repo_url: !ENV [MKDOCS_REPO_URL, "https://github.com/fso13/DiskScope"]
+repo_name: !ENV [MKDOCS_REPO_NAME, "fso13/DiskScope"]
+edit_uri: !ENV [MKDOCS_EDIT_URI, "edit/main/docs/"]
 
 docs_dir: docs
 site_dir: site
@@ -51,9 +51,14 @@ extra_css:
 
 extra:
   generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/fso13/DiskScope
+      name: DiskScope на GitHub
 
 nav:
   - Обзор: index.md
+  - Скачать: https://github.com/fso13/DiskScope/releases/latest
   - Как пользоваться: usage.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md

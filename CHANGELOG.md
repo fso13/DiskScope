@@ -29,6 +29,8 @@
 - `diskscope-cli` для замеров и `DiskScopeSnapshots` для PNG-рендера интерфейса.
 - GitHub Actions: сборка релиза по тегу и публикация документации на
   GitHub Pages.
+- Кнопка «Скачать последний релиз» на сайте документации и постоянная ссылка
+  на universal-архив `DiskScope-macos-universal.zip`.
 
 ### Ограничения
 
