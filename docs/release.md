@@ -1,3 +1,5 @@
+<p class="eyebrow">CI / CD</p>
+
 # CI и релизы
 
 В проекте два GitHub Actions workflow:

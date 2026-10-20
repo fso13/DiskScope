@@ -11,7 +11,7 @@ docs_dir: docs
 site_dir: site
 use_directory_urls: false
 
-copyright: Copyright © 2026 DiskScope · MIT
+copyright: "© 2026 DiskScope · built with Swift & APFS"
 
 theme:
   name: material
@@ -22,20 +22,18 @@ theme:
   icon:
     repo: fontawesome/brands/github
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/weather-night
-        name: Тёмная тема
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
+    - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/weather-sunny
         name: Светлая тема
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
   features:
     - navigation.sections
     - navigation.top

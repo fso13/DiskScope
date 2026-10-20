@@ -1,3 +1,5 @@
+<p class="eyebrow">Internals</p>
+
 # Архитектура
 
 ## Общая схема

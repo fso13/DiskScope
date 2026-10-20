@@ -1,25 +1,61 @@
-# DiskScope
+---
+hide:
+  - navigation
+  - toc
+---
 
-**Нативный анализатор диска для macOS.** Показывает, что именно занимает место:
-тепловая карта папок, крупнейшие файлы, распределение по типам и очистка в
-Корзину прямо из приложения.
-
-## Скачать
-
-[Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip){ .md-button .md-button--primary }
-[Все релизы](https://github.com/fso13/DiskScope/releases){ .md-button }
-
-Universal-сборка для Apple Silicon и Intel, macOS 14+. Подпись ad-hoc: при
-первом запуске может понадобиться «Открыть» через контекстное меню.
-
-![Карта папки](assets/screenshots/01-map-light.png)
+<section class="hero" aria-label="DiskScope">
+<div class="hero-copy">
+<p class="hero-role">macOS disk analyzer</p>
+<h1 class="hero-name">DiskScope</h1>
+<p class="hero-lead">Нативный анализатор диска: тепловая карта, крупнейшие файлы и очистка в Корзину. SwiftUI, APFS, без облака.</p>
+<p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span>v1.0.0 · macOS 14+ · universal</span></p>
+<div class="hero-actions">
+<a class="btn btn-primary" href="https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip">Скачать последний релиз</a>
+<a class="btn btn-ghost" href="https://github.com/fso13/DiskScope/releases">Все релизы</a>
+</div>
+<nav class="hero-nav" aria-label="Разделы">
+<a href="#features">Возможности</a>
+<a href="#screenshots">Скриншоты</a>
+<a href="#install">Установка</a>
+<a href="usage.html">Документация</a>
+</nav>
+<div class="hero-meta" role="list">
+<div role="listitem"><span>Архитектуры</span><strong>Apple · Intel</strong></div>
+<div role="listitem"><span>Сканер</span><strong>getattrlistbulk</strong></div>
+<div role="listitem"><span>Приватность</span><strong>Только локально</strong></div>
+</div>
+</div>
+<aside class="hero-panel" aria-hidden="true">
+<div class="panel-bar">
+<span class="panel-dots"></span>
+<span class="panel-file">DiskScope.scan</span>
+<span class="panel-lang">APFS</span>
+</div>
+<pre class="hero-code"><code><span class="c-line"><span class="c-cmt">$ diskscope scan ~/</span></span>
+<span class="c-line"><span class="c-green">✓</span> 238 GB <span class="c-muted">·</span> 3.13M files <span class="c-muted">·</span> 554k dirs</span>
+<span class="c-line"><span class="c-muted">├─</span> Documents <span class="c-cyan">87.1 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> Library <span class="c-cyan">83.2 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> Movies <span class="c-cyan">27.7 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> .gradle <span class="c-cyan">10.6 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> .m2 <span class="c-cyan">2.8 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> .vscode <span class="c-cyan">2.7 GB</span></span>
+<span class="c-line"><span class="c-muted">├─</span> .cache <span class="c-cyan">1.8 GB</span></span>
+<span class="c-line"><span class="c-muted">└─</span> Downloads <span class="c-cyan">2.6 GB</span></span>
+<span class="c-line"> </span>
+<span class="c-line"><span class="c-pink">largest</span> Cursor/state.vscdb <span class="c-yellow">16.2 GB</span></span>
+<span class="c-line"><span class="c-muted">nodes</span> 1 061 194 <span class="c-muted">·</span> <span class="c-accent">treemap ready</span></span>
+<span class="c-line"><span class="c-green">✓</span> scan completed <span class="c-muted">in 3m 56s</span><span class="c-cursor"></span></span></code></pre>
+</aside>
+</section>
 
 !!! info "Аналог Disk Space Analyzer"
     DiskScope написан на SwiftUI и работает локально: не отправляет данные в
     сеть, не использует сторонние библиотеки и не требует установки демонов.
     Сканирование идёт напрямую через `getattrlistbulk` и `openat`.
 
-## Возможности
+<p class="eyebrow">Features</p>
+## Возможности {#features}
 
 <div class="grid cards" markdown>
 
@@ -53,32 +89,55 @@ Universal-сборка для Apple Silicon и Intel, macOS 14+. Подпись 
 
 </div>
 
-## Быстрый старт
+<p class="eyebrow">Install</p>
+## Установка {#install}
 
-Есть готовый архив — см. раздел «Скачать» выше. Или соберите приложение
-сами:
+[Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip){ .md-button .md-button--primary }
+[Все релизы](https://github.com/fso13/DiskScope/releases){ .md-button }
 
-1. Соберите приложение: `./build.sh` (см. [Сборка и тесты](build.md)).
-2. Откройте `dist/DiskScope.app` и выберите папку, «Программы» или весь диск.
-3. Изучите карту, найдите крупнейшие объекты и освободите место.
+Universal-сборка для Apple Silicon и Intel, macOS 14+. Подпись ad-hoc: при
+первом запуске может понадобиться «Открыть» через контекстное меню.
 
-[Как пользоваться](usage.md){ .md-button .md-button--primary }
-[Собрать из исходников](build.md){ .md-button }
-[Как устроено](architecture.md){ .md-button }
+1. Скачайте `DiskScope-macos-universal.zip` и распакуйте архив.
+2. Перетащите `DiskScope.app` в «Программы».
+3. Для полного сканирования выдайте приложению «Полный доступ к диску» и
+   перезапустите его.
 
-## Скриншоты
+Или соберите сами: `./build.sh` — [Сборка и тесты](build.md).
 
-![Крупнейшие объекты](assets/screenshots/03-largest.png)
+<p class="eyebrow">Gallery</p>
+## Скриншоты {#screenshots}
 
-![Типы файлов](assets/screenshots/04-types.png)
+<div class="screenshot-grid">
+<figure>
+<img src="assets/screenshots/01-map-light.png" alt="Карта папки в DiskScope">
+<figcaption>Тепловая карта</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/03-largest.png" alt="Крупнейшие объекты в DiskScope">
+<figcaption>Крупнейшие объекты</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/04-types.png" alt="Типы файлов в DiskScope">
+<figcaption>Типы файлов</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/05-map-folder.png" alt="Вложенная карта папки">
+<figcaption>Вложенная карта</figcaption>
+</figure>
+</div>
 
-## Что нового
+<p class="eyebrow">Releases</p>
+## Что нового {#releases}
 
-Актуальный список изменений — в `CHANGELOG.md` в корне репозитория, а все
-сборки — на странице [релизов](https://github.com/fso13/DiskScope/releases).
-Релизы собираются автоматически по тегам, подробности — в разделе
-[CI и релизы](release.md).
+Текущий релиз — **v1.0.0**. [Все релизы](https://github.com/fso13/DiskScope/releases) ·
+[CHANGELOG](https://github.com/fso13/DiskScope/blob/main/CHANGELOG.md).
 
-## Лицензия
+DiskScope сканирует диск локально, показывает карту и крупнейшие объекты,
+считает типы файлов и умеет аккуратно перемещать выбранное в Корзину. Релизы
+собираются автоматически по тегам, а этот сайт — из тех же Markdown-файлов.
+
+<p class="eyebrow">License</p>
+## Лицензия {#license}
 
 MIT. Исходный код — в репозитории [fso13/DiskScope](https://github.com/fso13/DiskScope).
