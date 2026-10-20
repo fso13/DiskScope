@@ -81,7 +81,7 @@ open dist/DiskScope.dmg
 Для universal-сборки (Apple Silicon + Intel), как в релизах:
 
 ```bash
-VERSION=1.0.0 BUILD_NUMBER=1 UNIVERSAL=1 ./build.sh
+VERSION=1.1.1 BUILD_NUMBER=1 UNIVERSAL=1 ./build.sh
 ```
 
 `VERSION` и `BUILD_NUMBER` подставляются в `Info.plist`; в CI версия берётся из
@@ -191,8 +191,9 @@ python3 -m venv .venv
 ## CI и релизы
 
 - [release.yml](.github/workflows/release.yml) — по тегу `v*`: тесты,
-  universal-сборка, артефакт workflow и GitHub Release с заметками из
-  [CHANGELOG.md](CHANGELOG.md), `SHA256SUMS.txt` и постоянным DMG-образом
+  universal-сборка, артефакт workflow и GitHub Release с описанием из
+  [CHANGELOG.md](CHANGELOG.md), прямыми ссылками на DMG/ZIP и страницу
+  релиза, `SHA256SUMS.txt` и постоянным DMG-образом
   `DiskScope-macos-universal.dmg` (плюс ZIP-архив).
 - [pages.yml](.github/workflows/pages.yml) — сборка [mkdocs.yml](mkdocs.yml) из
   [docs/](docs/index.md) и деплой на GitHub Pages.
@@ -200,8 +201,8 @@ python3 -m venv .venv
 Выпуск релиза:
 
 ```bash
-git tag -a v1.0.0 -m "DiskScope 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.1 -m "DiskScope 1.1.1"
+git push origin v1.1.1
 ```
 
 Для GitHub Pages один раз включите **Settings → Pages → Source: GitHub Actions**

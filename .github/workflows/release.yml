@@ -91,8 +91,21 @@ jobs:
       - name: Create release notes
         run: |
           set -euo pipefail
+          RELEASE_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          DMG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${STABLE_DMG}"
+          ZIP_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${STABLE_ZIP}"
+          CHANGELOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md"
+
           ./scripts/release-notes.sh "${GITHUB_REF_NAME}" > release-notes.md
           {
+            echo
+            echo "## Скачать"
+            echo
+            echo "**DMG:** [${STABLE_DMG}](${DMG_URL})"
+            echo
+            echo "**ZIP:** [${STABLE_ZIP}](${ZIP_URL})"
+            echo
+            echo "**Страница релиза:** ${RELEASE_URL}"
             echo
             echo "## Установка"
             echo
@@ -106,11 +119,13 @@ jobs:
             echo
             echo "Образ собран universal: Apple Silicon и Intel (macOS 14+)."
             echo
-            echo "Постоянная ссылка: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_DMG}"
+            echo "**Все изменения:** [CHANGELOG.md](${CHANGELOG_URL})"
             echo
             echo "**SHA-256 DMG:** \`${DMG_SHA256}\`"
             echo
             echo "**SHA-256 ZIP:** \`${ZIP_SHA256}\`"
+            echo
+            echo "Постоянная ссылка: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_DMG}"
           } >> release-notes.md
           echo "----- release notes -----"
           cat release-notes.md
@@ -128,30 +143,54 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: DiskScope ${{ github.ref_name }}
-          body_path: release-notes.md
-          files: |
-            dist/DiskScope-macos-universal.dmg
-            dist/DiskScope-macos-universal.zip
-            dist/SHA256SUMS.txt
-          fail_on_unmatched_files: true
-          generate_release_notes: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          overwrite_files: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TITLE="DiskScope ${GITHUB_REF_NAME}"
+          PRERELEASE_FLAG=""
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release edit "${GITHUB_REF_NAME}" \
+              --title "$TITLE" \
+              --notes-file release-notes.md
+            gh release upload "${GITHUB_REF_NAME}" \
+              "dist/${STABLE_DMG}" \
+              "dist/${STABLE_ZIP}" \
+              dist/SHA256SUMS.txt \
+              --clobber
+            if [[ -n "$PRERELEASE_FLAG" ]]; then
+              gh release edit "${GITHUB_REF_NAME}" --prerelease
+            fi
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              "dist/${STABLE_DMG}" \
+              "dist/${STABLE_ZIP}" \
+              dist/SHA256SUMS.txt \
+              --title "$TITLE" \
+              --notes-file release-notes.md \
+              --verify-tag \
+              $PRERELEASE_FLAG
+          fi
+
+          echo "Release: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
 
       - name: Job summary
         run: |
+          RELEASE_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          DMG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${STABLE_DMG}"
+          ZIP_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${STABLE_ZIP}"
           {
             echo "## DiskScope ${GITHUB_REF_NAME}"
             echo
             echo "| | |"
             echo "| --- | --- |"
-            echo "| Файл | \`${STABLE_DMG}\` |"
-            echo "| Скачать | [${STABLE_DMG}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_DMG}) |"
-            echo "| ZIP | [${STABLE_ZIP}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_ZIP}) |"
+            echo "| Релиз | [${GITHUB_REF_NAME}](${RELEASE_URL}) |"
+            echo "| DMG | [${STABLE_DMG}](${DMG_URL}) |"
+            echo "| ZIP | [${STABLE_ZIP}](${ZIP_URL}) |"
             echo "| Версия | ${VERSION} |"
             echo "| SHA-256 DMG | \`${DMG_SHA256}\` |"
             echo "| SHA-256 ZIP | \`${ZIP_SHA256}\` |"

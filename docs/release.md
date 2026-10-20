@@ -12,8 +12,8 @@
 ## Релиз по тегу
 
 ```bash
-git tag -a v1.0.0 -m "DiskScope 1.0.0"
-git push origin v1.0.0
+git tag -a v1.1.1 -m "DiskScope 1.1.1"
+git push origin v1.1.1
 ```
 
 После этого workflow:
@@ -22,16 +22,19 @@ git push origin v1.0.0
 2. печатает версии macOS, Swift и Xcode;
 3. запускает `swift test`;
 4. собирает universal-приложение (`arm64 + x86_64`) с версией из тега:
-   `VERSION=1.0.0 BUILD_NUMBER=<run number> UNIVERSAL=1 ./build.sh`;
+   `VERSION=1.1.1 BUILD_NUMBER=<run number> UNIVERSAL=1 ./build.sh`;
 5. проверяет `codesign`, `lipo` и версию в `Info.plist`;
-6. достаёт раздел `[1.0.0]` из `CHANGELOG.md` скриптом
+6. достаёт раздел `[1.1.1]` из `CHANGELOG.md` скриптом
    `scripts/release-notes.sh`; если раздела нет — собирает список коммитов из
    git;
-7. добавляет в конец заметок инструкцию по установке, постоянную ссылку и
-   SHA-256 архива;
+7. добавляет в конец заметок блок «Скачать» с прямыми ссылками на собранные
+   DMG/ZIP, страницу релиза, ссылку на CHANGELOG, SHA-256 и инструкцию по
+   установке;
 8. загружает версионированные DMG/ZIP и `SHA256SUMS.txt` в артефакты
-   workflow, а `DiskScope-macos-universal.dmg` и ZIP — в релиз;
-9. создаёт (или обновляет) GitHub Release с описанием и стабильным DMG.
+   workflow;
+9. явно создаёт (или обновляет) GitHub Release через `gh release create`:
+   тело из CHANGELOG, DMG, ZIP и `SHA256SUMS.txt`; прямые ссылки на ассеты
+   уже включены в описание.
 
 Тег `v1.0.0-beta.1` автоматически помечается как prerelease, потому что
 содержит дефис.
@@ -42,10 +45,21 @@ git push origin v1.0.0
   приложение и ярлык `Applications`;
 - `DiskScope-macos-universal.zip` — резервный архив с приложением;
 - `SHA256SUMS.txt` — контрольные суммы DMG и ZIP;
-- текст из `CHANGELOG.md` + инструкция по установке.
+- текст из `CHANGELOG.md` + инструкция по установке + прямые ссылки на
+  DMG, ZIP, страницу релиза и CHANGELOG.
 
 Версионированные `DiskScope-<version>-macos-universal.dmg` и
 `DiskScope-<version>-macos-universal.zip` остаются в артефактах workflow.
+
+### Ссылки в релизе
+
+- **DMG:** `https://github.com/fso13/DiskScope/releases/download/<tag>/DiskScope-macos-universal.dmg`
+- **ZIP:** `https://github.com/fso13/DiskScope/releases/download/<tag>/DiskScope-macos-universal.zip`
+- **Страница релиза:** `https://github.com/fso13/DiskScope/releases/tag/<tag>`
+- **CHANGELOG:** `https://github.com/fso13/DiskScope/blob/<tag>/CHANGELOG.md`
+
+Прямые ссылки ведут на билд конкретного тега, а не на `latest`, поэтому
+остаются рабочими для старых релизов.
 
 ### Постоянная ссылка
 
