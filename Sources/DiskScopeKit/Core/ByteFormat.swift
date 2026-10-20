@@ -37,9 +37,13 @@ public enum ByteFormat {
         if fraction >= 0.9995 { return "100%" }
         let value = fraction * 100
         let decimals: Int
-        if value >= 10, value < 99 { decimals = 0 }
-        else if value >= 1 { decimals = 1 }
-        else { decimals = 2 }
+        if value >= 10, value < 99 {
+            decimals = 0
+        } else if value >= 1 {
+            decimals = 1
+        } else {
+            decimals = 2
+        }
         return "\(number(value, decimals))%"
     }
 

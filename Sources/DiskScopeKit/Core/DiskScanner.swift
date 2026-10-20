@@ -380,7 +380,8 @@ public final class DiskScanner {
                 tuplePointer.withMemoryRebound(to: UInt8.self, capacity: nameCapacity) { namePointer in
                     let length = Int(strlen(UnsafeRawPointer(namePointer).assumingMemoryBound(to: CChar.self)))
                     if length == 0 { return }
-                    if namePointer[0] == 46, (length == 1 || (length == 2 && namePointer[1] == 46)) { return }
+                    let isDotEntry = namePointer[0] == 46
+                    if isDotEntry, length == 1 || (length == 2 && namePointer[1] == 46) { return }
 
                     var info = stat()
                     let statResult = namePointer.withMemoryRebound(to: CChar.self, capacity: length + 1) {

@@ -2,12 +2,50 @@
 
 # CI и релизы
 
-В проекте два GitHub Actions workflow:
+В проекте пять GitHub Actions workflow:
 
 | Workflow | Файл | Когда запускается | Что делает |
 | --- | --- | --- | --- |
 | Release | `.github/workflows/release.yml` | push тега `v*` | тесты, universal-сборка, GitHub Release, артефакт |
 | Documentation | `.github/workflows/pages.yml` | push в `main`/`master` (docs) или вручную | сборка MkDocs Material и деплой на GitHub Pages |
+| Static Analysis | `.github/workflows/static-analysis.yml` | push/PR в `main`, по расписанию | SwiftLint и проверка компиляции |
+| CodeQL | `.github/workflows/codeql.yml` | push/PR в `main`, по расписанию | статический security-анализ Swift |
+| CVE Analysis | `.github/workflows/cve-analysis.yml` | push/PR в `main`, по расписанию | OSV-Scanner, Trivy и Dependency Review |
+
+## Статический анализ
+
+`static-analysis.yml` запускается на push/PR и раз в неделю.
+
+- **SwiftLint** проверяет `Sources/` и `Tests/` по `.swiftlint.yml`.
+  Предупреждения аннотируются в diff, ошибки валят job. JSON-отчёт
+  сохраняется артефактом `swiftlint-report`.
+- **Compiler** собирает проект через `swift build`, чтобы поймать ошибки
+  компиляции независимо от тестов.
+- Текущая конфигурация: 0 serious violations; style-предупреждения
+  (`empty_count`, `optional_data_string_conversion`) остаются видимыми, но не
+  блокируют merge.
+
+## CodeQL
+
+`codeql.yml` выполняет `security-and-quality` запросы для Swift на macOS.
+Результаты публикуются в **Security → Code scanning**. Это отдельный
+статический анализ безопасности, не заменяющий SwiftLint.
+
+## CVE и зависимости
+
+`cve-analysis.yml` — отдельный pipeline для CVE:
+
+- **Dependency Review** на pull request — блокирует новые зависимости с
+  уязвимостями high/critical;
+- **OSV-Scanner** — сканирует зависимости через OSV.dev; на PR проверяет
+  только новые уязвимости, на push/schedule делает полный скан и публикует
+  SARIF в Code Scanning;
+- **Trivy** — filesystem-скан library/OS-пакетов с `exit-code: 1` для
+  critical/high;
+- **Dependabot** (`.github/dependabot.yml`) следит за GitHub Actions и SwiftPM.
+
+Все три pipeline независимы: падение CVE-скана не блокирует статический
+анализ, и наоборот.
 
 ## Релиз по тегу
 

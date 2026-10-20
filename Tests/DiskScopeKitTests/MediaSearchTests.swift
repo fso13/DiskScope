@@ -236,7 +236,6 @@ final class PhotosImporterTests: XCTestCase {
     }
 }
 
-
 @MainActor
 final class MediaModelTests: XCTestCase {
     private var scratch: URL!

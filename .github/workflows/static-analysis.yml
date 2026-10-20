@@ -1,0 +1,84 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swiftlint:
+    name: SwiftLint
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Lint
+        run: |
+          set -euo pipefail
+          swiftlint version
+
+          # Machine-readable report for the artifact and summary.
+          swiftlint lint --no-cache --reporter json --output swiftlint.json || true
+
+          # Annotate the diff; warnings are advisory, errors fail the job.
+          set +e
+          swiftlint lint --no-cache --reporter github-actions-logging
+          lint_status=$?
+          set -e
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          try:
+              violations = json.load(open('swiftlint.json', encoding='utf-8'))
+          except Exception:
+              violations = []
+
+          errors = sum(1 for item in violations if item.get('severity') == 'Error')
+          warnings = sum(1 for item in violations if item.get('severity') == 'Warning')
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## SwiftLint\n\n')
+              summary.write(f'- Errors: **{errors}**\n')
+              summary.write(f'- Warnings: **{warnings}**\n')
+              summary.write(f'- Files: **{len(set(item.get("file") for item in violations))}**\n')
+          PY
+
+          exit "$lint_status"
+
+      - name: Upload SwiftLint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftlint-report
+          path: swiftlint.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  compiler:
+    name: Compiler
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build --disable-sandbox

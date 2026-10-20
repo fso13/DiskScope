@@ -64,6 +64,18 @@ Wiki публикуется скриптом:
 
 `DiskScopeSnapshots` рендерит UI без screen recording. После изменения интерфейса обновите `snapshots/` и `docs/assets/screenshots/`.
 
+## CI
+
+В проекте три независимых security/quality pipeline:
+
+- **Static Analysis** — SwiftLint и `swift build`; ошибки линтера валят job,
+  предупреждения аннотируются.
+- **CodeQL** — `security-and-quality` запросы для Swift.
+- **CVE Analysis** — OSV-Scanner, Trivy и Dependency Review.
+
+CVE-скан не блокирует статический анализ и наоборот; оба работают на
+push/PR и по недельному расписанию.
+
 ## Релизы
 
 Релиз делает мейнтейнер по тегу. См. [Процесс релиза](Release-Process).

@@ -6,6 +6,10 @@
 
 [Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest) · [Сайт документации](https://fso13.github.io/DiskScope/) · [Репозиторий](https://github.com/fso13/DiskScope)
 
+[![Static Analysis](https://github.com/fso13/DiskScope/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/fso13/DiskScope/actions/workflows/static-analysis.yml)
+[![CodeQL](https://github.com/fso13/DiskScope/actions/workflows/codeql.yml/badge.svg)](https://github.com/fso13/DiskScope/actions/workflows/codeql.yml)
+[![CVE Analysis](https://github.com/fso13/DiskScope/actions/workflows/cve-analysis.yml/badge.svg)](https://github.com/fso13/DiskScope/actions/workflows/cve-analysis.yml)
+
 ![Карта папки](snapshots/01-map-light.png)
 
 📖 Подробная документация: [docs/index.md](docs/index.md). Опубликованный сайт —
@@ -196,6 +200,12 @@ python3 -m venv .venv
 
 - [Wiki](https://github.com/fso13/DiskScope/wiki) — установка, возможности,
   настройки, архитектура, FAQ и решение проблем.
+- [static-analysis.yml](.github/workflows/static-analysis.yml) — SwiftLint и
+  проверка компиляции на push/PR и раз в неделю.
+- [codeql.yml](.github/workflows/codeql.yml) — CodeQL для Swift с запросами
+  `security-and-quality`.
+- [cve-analysis.yml](.github/workflows/cve-analysis.yml) — OSV-Scanner,
+  Trivy и Dependency Review для CVE и зависимостей.
 - [release.yml](.github/workflows/release.yml) — по тегу `v*`: тесты,
   universal-сборка, артефакт workflow и GitHub Release с описанием из
   [CHANGELOG.md](CHANGELOG.md), прямыми ссылками на DMG/ZIP и страницу

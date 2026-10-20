@@ -251,7 +251,6 @@ private struct CategoryRowView: View {
     }
 }
 
-
 private struct TopItemRow: View {
     let row: AppModel.ItemRow
     let rootName: String

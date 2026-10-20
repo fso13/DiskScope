@@ -30,6 +30,12 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-2ea44f?style=flat-square">
 </p>
 
+<p align="center">
+  <a href="https://github.com/fso13/DiskScope/actions/workflows/static-analysis.yml"><img src="https://github.com/fso13/DiskScope/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
+  <a href="https://github.com/fso13/DiskScope/actions/workflows/codeql.yml"><img src="https://github.com/fso13/DiskScope/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
+  <a href="https://github.com/fso13/DiskScope/actions/workflows/cve-analysis.yml"><img src="https://github.com/fso13/DiskScope/actions/workflows/cve-analysis.yml/badge.svg" alt="CVE Analysis"></a>
+</p>
+
 ---
 
 ## Что такое DiskScope
