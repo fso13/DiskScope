@@ -65,8 +65,8 @@ https://fso13.github.io/DiskScope/.
 [последнем релизе](https://github.com/fso13/DiskScope/releases/latest) или по
 [прямой ссылке](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg).
 
-DMG — стандартный установщик: откройте образ, перетащите `DiskScope.app` в
-«Программы» и запустите приложение.
+DMG — кастомный установщик с фирменным фоном: откройте образ, перетащите
+`DiskScope.app` в «Программы» и запустите приложение.
 
 ```bash
 ./build.sh

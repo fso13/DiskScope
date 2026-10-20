@@ -122,9 +122,9 @@ hide:
 [Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg){ .md-button .md-button--primary }
 [Все релизы](https://github.com/fso13/DiskScope/releases){ .md-button }
 
-Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте образ и
-перетащите `DiskScope.app` в «Программы». Подпись ad-hoc: при первом запуске
-может понадобиться «Открыть» через контекстное меню.
+Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте образ с фирменным
+фоном и перетащите `DiskScope.app` в «Программы». Подпись ad-hoc: при первом
+запуске может понадобиться «Открыть» через контекстное меню.
 
 1. Скачайте `DiskScope-macos-universal.dmg` и откройте образ.
 2. Перетащите `DiskScope.app` в «Программы».

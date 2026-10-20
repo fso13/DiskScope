@@ -38,8 +38,8 @@ git push origin v1.0.0
 
 ### Что попадает в Release
 
-- `DiskScope-macos-universal.dmg` — установщик: приложение и ярлык
-  `Applications`;
+- `DiskScope-macos-universal.dmg` — кастомный установщик с фирменным фоном:
+  приложение и ярлык `Applications`;
 - `DiskScope-macos-universal.zip` — резервный архив с приложением;
 - `SHA256SUMS.txt` — контрольные суммы DMG и ZIP;
 - текст из `CHANGELOG.md` + инструкция по установке.

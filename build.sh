@@ -84,27 +84,18 @@ echo "==> Packaging DMG installer"
 DMG="$ROOT/dist/DiskScope.dmg"
 STAGING="$ROOT/.build/dmg"
 rm -rf "$STAGING" "$DMG"
-mkdir -p "$STAGING"
+mkdir -p "$STAGING/.background"
 ditto "$APP" "$STAGING/DiskScope.app"
 ln -s /Applications "$STAGING/Applications"
-cat > "$STAGING/Read Me.txt" <<EOF
-DiskScope $VERSION
-
-Установка:
-1. Перетащите DiskScope.app в папку Applications.
-2. Откройте DiskScope из «Программ».
-3. Если macOS не даёт открыть приложение, используйте контекстное меню → «Открыть».
-4. Для полного сканирования выдайте «Полный доступ к диску».
-
-Universal: Apple Silicon + Intel, macOS 14+.
-EOF
+cp "$ROOT/Support/dmg/background.png" "$STAGING/.background/background.png"
+cp "$ROOT/Support/dmg/DS_Store" "$STAGING/.DS_Store"
 if [ -f "$APP/Contents/Resources/AppIcon.icns" ]; then
   cp "$APP/Contents/Resources/AppIcon.icns" "$STAGING/.VolumeIcon.icns"
   if command -v SetFile >/dev/null 2>&1; then
     SetFile -a C "$STAGING"
   fi
 fi
-hdiutil create -volname "DiskScope $VERSION" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "DiskScope" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
 hdiutil verify "$DMG" >/dev/null
 
 echo ""
