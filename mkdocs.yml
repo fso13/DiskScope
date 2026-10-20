@@ -1,0 +1,79 @@
+site_name: DiskScope
+site_description: Нативный анализатор диска для macOS — тепловая карта, крупнейшие файлы, типы и очистка в Корзину.
+site_author: DiskScope
+site_url: !ENV [MKDOCS_SITE_URL, "http://localhost:8000/"]
+
+repo_url: !ENV [MKDOCS_REPO_URL, ""]
+repo_name: !ENV [MKDOCS_REPO_NAME, "GitHub"]
+edit_uri: !ENV [MKDOCS_EDIT_URI, ""]
+
+docs_dir: docs
+site_dir: site
+use_directory_urls: false
+
+copyright: Copyright © 2026 DiskScope · MIT
+
+theme:
+  name: material
+  language: ru
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - search.suggest
+    - toc.follow
+
+extra_css:
+  - assets/extra.css
+
+extra:
+  generator: false
+
+nav:
+  - Обзор: index.md
+  - Как пользоваться: usage.md
+  - Сборка и тесты: build.md
+  - Архитектура: architecture.md
+  - CI и релизы: release.md
+  - Ограничения: limitations.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true

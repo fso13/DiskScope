@@ -1,0 +1,35 @@
+:root {
+  --md-primary-fg-color: #5b7cff;
+  --md-primary-fg-color--light: #7f9bff;
+  --md-primary-fg-color--dark: #3f5bd6;
+  --md-accent-fg-color: #7c5cff;
+  --md-accent-fg-color--transparent: #7c5cff1a;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #6c86ff;
+  --md-primary-fg-color--light: #8ea4ff;
+  --md-primary-fg-color--dark: #4c63d9;
+  --md-accent-fg-color: #9b82ff;
+}
+
+.md-typeset img {
+  border-radius: 0.45rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.6rem;
+}
+
+.md-typeset .admonition {
+  border-radius: 0.45rem;
+}
+
+.md-typeset table:not([class]) {
+  font-size: 0.7rem;
+}
+
+.md-typeset .md-button {
+  border-radius: 2rem;
+}
