@@ -12,12 +12,16 @@
 
 ```bash
 ./build.sh
-open dist/DiskScope.app
+open dist/DiskScope.dmg
 ```
 
 Скрипт собирает release-версию, создаёт `dist/DiskScope.app`, генерирует иконку
-при необходимости, подписывает бандл ad-hoc и упаковывает
-`dist/DiskScope.zip`.
+при необходимости, подписывает бандл ad-hoc и упаковывает `dist/DiskScope.dmg`
+и `dist/DiskScope.zip`.
+
+DMG — стандартный установщик для macOS: внутри `DiskScope.app`, ярлык
+`Applications` и `Read Me.txt`. Откройте образ и перетащите приложение в
+«Программы».
 
 ### Версия и архитектуры
 
@@ -89,13 +93,14 @@ MKDOCS_SITE_URL=http://localhost:8000/ .venv/bin/mkdocs build --strict
 
 ## Тесты
 
-23 XCTest-теста покрывают:
+40 XCTest-тестов покрывают:
 
 - сканер и точность суммы против `du`;
 - агрегацию мелких файлов, пакеты, симлинки, Unicode-имена;
 - отказ доступа, отмену, copy-on-write удаление;
 - свойства squarified-раскладки и вложенные ячейки карты;
-- полный цикл `AppModel`: скан → навигация → фильтры.
+- полный цикл `AppModel`: скан → навигация → фильтры;
+- медиа-поиск, переносы в папку и модель медиа-вкладки.
 
 ```bash
 swift test
@@ -116,5 +121,5 @@ Tests/           XCTest
 Support/         Info.plist и генератор иконки
 docs/            исходники сайта (MkDocs Material)
 scripts/         релизные заметки и синхронизация ассетов
-build.sh         сборка, подпись, zip
+build.sh         сборка, подпись, DMG и zip
 ```

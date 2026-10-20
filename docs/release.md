@@ -29,25 +29,27 @@ git push origin v1.0.0
    git;
 7. добавляет в конец заметок инструкцию по установке, постоянную ссылку и
    SHA-256 архива;
-8. загружает `DiskScope-1.0.0-macos-universal.zip` и `SHA256SUMS.txt` в
-   артефакты workflow, а `DiskScope-macos-universal.zip` — в релиз;
-9. создаёт (или обновляет) GitHub Release с описанием и стабильным архивом.
+8. загружает версионированные DMG/ZIP и `SHA256SUMS.txt` в артефакты
+   workflow, а `DiskScope-macos-universal.dmg` и ZIP — в релиз;
+9. создаёт (или обновляет) GitHub Release с описанием и стабильным DMG.
 
 Тег `v1.0.0-beta.1` автоматически помечается как prerelease, потому что
 содержит дефис.
 
 ### Что попадает в Release
 
-- `DiskScope-macos-universal.zip` — приложение, подписанное ad-hoc;
-- `SHA256SUMS.txt` — контрольная сумма архива;
+- `DiskScope-macos-universal.dmg` — установщик: приложение и ярлык
+  `Applications`;
+- `DiskScope-macos-universal.zip` — резервный архив с приложением;
+- `SHA256SUMS.txt` — контрольные суммы DMG и ZIP;
 - текст из `CHANGELOG.md` + инструкция по установке.
 
-Версионированный `DiskScope-<version>-macos-universal.zip` остаётся в
-артефактах workflow.
+Версионированные `DiskScope-<version>-macos-universal.dmg` и
+`DiskScope-<version>-macos-universal.zip` остаются в артефактах workflow.
 
 ### Постоянная ссылка
 
-https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip
+https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg
 
 Она всегда указывает на последний **стабильный** релиз (prerelease-теги с
 дефисом в `latest` не попадают). Именно эта ссылка используется на сайте

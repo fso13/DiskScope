@@ -45,17 +45,27 @@ jobs:
           ./build.sh
 
           ARCHIVE_NAME="DiskScope-${VERSION}-macos-universal.zip"
-          STABLE_NAME="DiskScope-macos-universal.zip"
+          STABLE_ZIP="DiskScope-macos-universal.zip"
+          DMG_NAME="DiskScope-${VERSION}-macos-universal.dmg"
+          STABLE_DMG="DiskScope-macos-universal.dmg"
+
           mv dist/DiskScope.zip "dist/${ARCHIVE_NAME}"
-          cp "dist/${ARCHIVE_NAME}" "dist/${STABLE_NAME}"
-          (cd dist && shasum -a 256 "${STABLE_NAME}" > SHA256SUMS.txt)
-          HASH="$(awk '{print $1}' dist/SHA256SUMS.txt)"
+          cp "dist/${ARCHIVE_NAME}" "dist/${STABLE_ZIP}"
+          mv dist/DiskScope.dmg "dist/${DMG_NAME}"
+          cp "dist/${DMG_NAME}" "dist/${STABLE_DMG}"
+
+          (cd dist && shasum -a 256 "${STABLE_DMG}" "${STABLE_ZIP}" > SHA256SUMS.txt)
+          DMG_HASH="$(awk 'NR==1 {print $1}' dist/SHA256SUMS.txt)"
+          ZIP_HASH="$(awk 'NR==2 {print $1}' dist/SHA256SUMS.txt)"
 
           {
             echo "VERSION=${VERSION}"
             echo "ARCHIVE_NAME=${ARCHIVE_NAME}"
-            echo "STABLE_NAME=${STABLE_NAME}"
-            echo "ARCHIVE_SHA256=${HASH}"
+            echo "STABLE_ZIP=${STABLE_ZIP}"
+            echo "DMG_NAME=${DMG_NAME}"
+            echo "STABLE_DMG=${STABLE_DMG}"
+            echo "DMG_SHA256=${DMG_HASH}"
+            echo "ZIP_SHA256=${ZIP_HASH}"
           } >> "$GITHUB_ENV"
 
       - name: Verify bundle
@@ -66,8 +76,17 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" dist/DiskScope.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" dist/DiskScope.app/Contents/Info.plist
           test -f "dist/${ARCHIVE_NAME}"
-          test -f "dist/${STABLE_NAME}"
+          test -f "dist/${STABLE_ZIP}"
+          test -f "dist/${DMG_NAME}"
+          test -f "dist/${STABLE_DMG}"
           test -f dist/SHA256SUMS.txt
+          hdiutil verify "dist/${STABLE_DMG}" >/dev/null
+
+          MOUNT="$(hdiutil attach -nobrowse -readonly "dist/${STABLE_DMG}" | tail -1 | awk -F'\t' '{print $NF}')"
+          test -d "$MOUNT/DiskScope.app"
+          test -L "$MOUNT/Applications"
+          codesign --verify --deep --strict "$MOUNT/DiskScope.app"
+          hdiutil detach "$MOUNT" >/dev/null
 
       - name: Create release notes
         run: |
@@ -77,16 +96,21 @@ jobs:
             echo
             echo "## Установка"
             echo
-            echo "1. Скачайте \`${STABLE_NAME}\` и распакуйте архив."
+            echo "1. Скачайте \`${STABLE_DMG}\` и откройте образ."
             echo "2. Перетащите \`DiskScope.app\` в «Программы»."
-            echo "3. Если macOS не даёт открыть приложение, используйте контекстное меню → «Открыть»."
-            echo "4. Для полного сканирования выдайте «Полный доступ к диску» и перезапустите DiskScope."
+            echo "3. Запустите DiskScope из «Программ»."
+            echo "4. Если macOS не даёт открыть приложение, используйте контекстное меню → «Открыть»."
+            echo "5. Для полного сканирования выдайте «Полный доступ к диску» и перезапустите DiskScope."
             echo
-            echo "Архив собран universal: Apple Silicon и Intel (macOS 14+)."
+            echo "ZIP-архив \`${STABLE_ZIP}\` — альтернатива для тех, кто предпочитает архив."
             echo
-            echo "Постоянная ссылка: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_NAME}"
+            echo "Образ собран universal: Apple Silicon и Intel (macOS 14+)."
             echo
-            echo "**SHA-256:** \`${ARCHIVE_SHA256}\`"
+            echo "Постоянная ссылка: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_DMG}"
+            echo
+            echo "**SHA-256 DMG:** \`${DMG_SHA256}\`"
+            echo
+            echo "**SHA-256 ZIP:** \`${ZIP_SHA256}\`"
           } >> release-notes.md
           echo "----- release notes -----"
           cat release-notes.md
@@ -96,6 +120,7 @@ jobs:
         with:
           name: DiskScope-${{ github.ref_name }}
           path: |
+            dist/DiskScope-*.dmg
             dist/DiskScope-*.zip
             dist/SHA256SUMS.txt
             release-notes.md
@@ -109,6 +134,7 @@ jobs:
           name: DiskScope ${{ github.ref_name }}
           body_path: release-notes.md
           files: |
+            dist/DiskScope-macos-universal.dmg
             dist/DiskScope-macos-universal.zip
             dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
@@ -123,10 +149,12 @@ jobs:
             echo
             echo "| | |"
             echo "| --- | --- |"
-            echo "| Файл | \`${STABLE_NAME}\` |"
-            echo "| Скачать | [${STABLE_NAME}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_NAME}) |"
+            echo "| Файл | \`${STABLE_DMG}\` |"
+            echo "| Скачать | [${STABLE_DMG}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_DMG}) |"
+            echo "| ZIP | [${STABLE_ZIP}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/${STABLE_ZIP}) |"
             echo "| Версия | ${VERSION} |"
-            echo "| SHA-256 | \`${ARCHIVE_SHA256}\` |"
+            echo "| SHA-256 DMG | \`${DMG_SHA256}\` |"
+            echo "| SHA-256 ZIP | \`${ZIP_SHA256}\` |"
             echo "| Архитектуры | arm64 + x86_64 |"
-            echo "| Тесты | 23 XCTest |"
+            echo "| Тесты | 40 XCTest |"
           } >> "$GITHUB_STEP_SUMMARY"

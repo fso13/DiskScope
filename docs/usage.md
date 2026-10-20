@@ -3,8 +3,9 @@
 # Как пользоваться
 
 !!! tip "Установка"
-    Скачайте [последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip)
-    или соберите приложение по инструкции в разделе [Сборка и тесты](build.md).
+    Скачайте [DMG-установщик](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg),
+    откройте образ, перетащите `DiskScope.app` в «Программы» и запустите.
+    Или соберите приложение по инструкции в разделе [Сборка и тесты](build.md).
 
 ![Стартовый экран](assets/screenshots/06-welcome.png)
 

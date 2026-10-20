@@ -11,7 +11,7 @@ hide:
 <p class="hero-lead">Нативный анализатор диска: тепловая карта, крупнейшие файлы и очистка в Корзину. SwiftUI, APFS, без облака.</p>
 <p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span>v1.1.0 · macOS 14+ · universal</span></p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip">Скачать последний релиз</a>
+<a class="btn btn-primary" href="https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg">Скачать последний релиз</a>
 <a class="btn btn-ghost" href="https://github.com/fso13/DiskScope/releases">Все релизы</a>
 </div>
 <nav class="hero-nav" aria-label="Разделы">
@@ -106,13 +106,14 @@ hide:
 <p class="eyebrow">Install</p>
 ## Установка {#install}
 
-[Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip){ .md-button .md-button--primary }
+[Скачать последний релиз](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg){ .md-button .md-button--primary }
 [Все релизы](https://github.com/fso13/DiskScope/releases){ .md-button }
 
-Universal-сборка для Apple Silicon и Intel, macOS 14+. Подпись ad-hoc: при
-первом запуске может понадобиться «Открыть» через контекстное меню.
+Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте образ и
+перетащите `DiskScope.app` в «Программы». Подпись ad-hoc: при первом запуске
+может понадобиться «Открыть» через контекстное меню.
 
-1. Скачайте `DiskScope-macos-universal.zip` и распакуйте архив.
+1. Скачайте `DiskScope-macos-universal.dmg` и откройте образ.
 2. Перетащите `DiskScope.app` в «Программы».
 3. Для полного сканирования выдайте приложению «Полный доступ к диску» и
    перезапустите его.

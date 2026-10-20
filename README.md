@@ -61,16 +61,20 @@ https://fso13.github.io/DiskScope/.
 
 Готовую universal-сборку (Apple Silicon + Intel) можно скачать в
 [последнем релизе](https://github.com/fso13/DiskScope/releases/latest) или по
-[прямой ссылке](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip).
+[прямой ссылке](https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg).
+
+DMG — стандартный установщик: откройте образ, перетащите `DiskScope.app` в
+«Программы» и запустите приложение.
 
 ```bash
 ./build.sh
-open dist/DiskScope.app
+open dist/DiskScope.dmg
 ```
 
-Готовый бандл появится в `dist/DiskScope.app` (и `dist/DiskScope.zip`). Его можно
-перетащить в «Программы». Приложение подписано ad-hoc; при первом запуске
-macOS может попросить подтверждение — «Открыть» через контекстное меню.
+Скрипт создаёт `dist/DiskScope.app`, `dist/DiskScope.dmg` и `dist/DiskScope.zip`.
+Для установки откройте DMG и перетащите `DiskScope.app` в «Программы». Приложение
+подписано ad-hoc; при первом запуске macOS может попросить подтверждение —
+«Открыть» через контекстное меню.
 
 Для universal-сборки (Apple Silicon + Intel), как в релизах:
 
@@ -186,8 +190,8 @@ python3 -m venv .venv
 
 - [release.yml](.github/workflows/release.yml) — по тегу `v*`: тесты,
   universal-сборка, артефакт workflow и GitHub Release с заметками из
-  [CHANGELOG.md](CHANGELOG.md), `SHA256SUMS.txt` и постоянным архивом
-  `DiskScope-macos-universal.zip`.
+  [CHANGELOG.md](CHANGELOG.md), `SHA256SUMS.txt` и постоянным DMG-образом
+  `DiskScope-macos-universal.dmg` (плюс ZIP-архив).
 - [pages.yml](.github/workflows/pages.yml) — сборка [mkdocs.yml](mkdocs.yml) из
   [docs/](docs/index.md) и деплой на GitHub Pages.
 
@@ -203,7 +207,7 @@ git push origin v1.0.0
 https://fso13.github.io/DiskScope/.
 
 Прямая ссылка на последний стабильный релиз:
-https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip
+https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.dmg
 
 Подробности, права токена и диагностика — в [docs/release.md](docs/release.md).
 
