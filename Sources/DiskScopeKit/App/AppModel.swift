@@ -1,0 +1,675 @@
+import AppKit
+import Combine
+import Foundation
+
+@MainActor
+public final class AppModel: ObservableObject {
+    public enum Phase: Equatable {
+        case welcome
+        case scanning
+        case ready
+        case failed(String)
+    }
+
+    public enum Tab: String, CaseIterable, Identifiable {
+        case map
+        case largest
+        case types
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .map: return "Карта"
+            case .largest: return "Крупнейшие"
+            case .types: return "Типы файлов"
+            }
+        }
+
+        public var symbol: String {
+            switch self {
+            case .map: return "square.grid.2x2"
+            case .largest: return "list.number"
+            case .types: return "chart.bar.xaxis"
+            }
+        }
+    }
+
+    public struct ItemRow: Identifiable, Hashable, Sendable {
+        public let id: Int32
+        public let name: String
+        public let path: String
+        public let relativePath: String
+        public let size: Int64
+        public let category: FileCategory
+        public let isContainer: Bool
+        public let isAggregate: Bool
+        public let itemCount: Int
+        public let fraction: Double
+        public let depth: Int
+
+        public func hash(into hasher: inout Hasher) { hasher.combine(id) }
+        public static func == (lhs: ItemRow, rhs: ItemRow) -> Bool { lhs.id == rhs.id }
+    }
+
+    public struct Toast: Identifiable, Equatable {
+        public let id = UUID()
+        public let text: String
+        public let symbol: String
+    }
+
+    @Published public private(set) var phase: Phase = .welcome
+    @Published public private(set) var tree: ScanTree?
+    @Published public private(set) var currentIndex: Int32 = 0
+    @Published public var tab: Tab = .map
+    @Published public var selection: Set<Int32> = []
+    @Published public private(set) var progress: ScanProgress?
+    @Published public private(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
+    @Published public private(set) var fileCount = 0
+    @Published public private(set) var folderCount = 0
+    @Published public private(set) var largestItems: [ItemRow] = []
+    @Published public private(set) var categoryStats: [CategoryStat] = []
+    @Published public private(set) var currentRows: [ItemRow] = []
+    @Published public private(set) var currentRowsTotal = 0
+    @Published public private(set) var currentRowsTruncated = false
+    @Published public var searchText = "" { didSet { rebuildCurrentRows() } }
+    @Published public var sortOrder: [KeyPathComparator<ItemRow>] = [KeyPathComparator(\.size, order: .reverse)] {
+        didSet { rebuildCurrentRows() }
+    }
+    @Published public var categoryFilter: FileCategory?
+    @Published public var toast: Toast?
+    @Published public var errorMessage: String?
+    @Published public var showTrashConfirmation = false
+    @Published public var showPermissionSheet = false
+    @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
+
+    private var cancellation: ScanCancellation?
+    private var activeScanID = UUID()
+    private let scanQueue = DispatchQueue(label: "ru.diskscope.scan", qos: .userInitiated)
+    private var toastWorkItem: DispatchWorkItem?
+    private var derivedGeneration = 0
+    private let rowLimit = 2500
+
+    public init() {}
+
+    // MARK: - Derived state
+
+    public var isScanning: Bool { phase == .scanning }
+
+    public var homePath: String {
+        FileManager.default.homeDirectoryForCurrentUser.path
+    }
+
+    public var volume: VolumeInfo? {
+        volumes.first(where: { $0.isInternal }) ?? volumes.first
+    }
+
+    public var internalVolume: VolumeInfo? {
+        volumes.first(where: { $0.path == "/" }) ?? volumes.first
+    }
+
+    public var rootDisplayName: String {
+        guard let tree else { return "DiskScope" }
+        if tree.rootPath == "/" { return internalVolume?.name ?? "Macintosh HD" }
+        let known: [String: String] = [
+            homePath: "Домашняя папка",
+            homePath + "/Applications": "Программы",
+            "/Applications": "Программы",
+            homePath + "/Downloads": "Загрузки",
+            homePath + "/Documents": "Документы",
+            homePath + "/Desktop": "Рабочий стол",
+            homePath + "/Library": "Библиотека",
+            homePath + "/Movies": "Видео",
+            homePath + "/Music": "Музыка",
+            homePath + "/Pictures": "Изображения",
+        ]
+        if let known = known[tree.rootPath] { return known }
+        let name = URL(fileURLWithPath: tree.rootPath).lastPathComponent
+        return name.isEmpty ? tree.rootPath : name
+    }
+
+    public var currentNode: ScanNode? {
+        guard let tree, currentIndex >= 0, Int(currentIndex) < tree.count else { return nil }
+        return tree.node(currentIndex)
+    }
+
+    public var currentName: String {
+        guard let tree else { return "" }
+        if currentIndex == 0 { return rootDisplayName }
+        let name = tree.name(of: currentIndex)
+        return name.isEmpty ? rootDisplayName : name
+    }
+
+    public var breadcrumbs: [Int32] {
+        guard let tree else { return [] }
+        var chain: [Int32] = []
+        var cursor = currentIndex
+        while cursor >= 0, chain.count < 256 {
+            chain.append(cursor)
+            let parent = tree.node(cursor).parent
+            if parent < 0 { break }
+            cursor = parent
+        }
+        return chain.reversed()
+    }
+
+    public var canGoUp: Bool {
+        guard let tree else { return false }
+        return tree.node(currentIndex).parent >= 0
+    }
+
+    public var currentSize: Int64 {
+        tree?.node(currentIndex).size ?? 0
+    }
+
+    public var currentItemCount: Int {
+        Int(tree?.node(currentIndex).itemCount ?? 0)
+    }
+
+    public var currentDirectCount: Int {
+        guard let tree, Int(currentIndex) < tree.count else { return 0 }
+        return Int(tree.node(currentIndex).childrenCount)
+    }
+
+    public var currentPath: String {
+        tree?.path(of: currentIndex) ?? ""
+    }
+
+    public var selectedSize: Int64 {
+        guard let tree else { return 0 }
+        return selection.reduce(Int64(0)) { $0 + tree.node($1).size }
+    }
+
+    public var selectedCount: Int { selection.count }
+
+    public var canTrashSelection: Bool {
+        guard let tree, !selection.isEmpty else { return false }
+        return selection.allSatisfy { index in
+            index > 0 && !tree.isDeleted(index) && tree.node(index).nodeKind != .aggregate
+        }
+    }
+
+    public var canRevealSelection: Bool {
+        guard let tree, !selection.isEmpty else { return false }
+        return selection.contains { !tree.isDeleted($0) }
+    }
+
+    public var hasPermissionIssues: Bool {
+        (tree?.report.skippedItems ?? 0) > 0
+    }
+
+    public var freeSpaceText: String {
+        guard let volume = internalVolume else { return "—" }
+        return ByteFormat.string(volume.freeBytes)
+    }
+
+    public var filteredLargestRows: [ItemRow] {
+        var rows = largestItems
+        if let filter = categoryFilter {
+            rows = rows.filter { $0.category == filter }
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            rows = rows.filter {
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.relativePath.localizedCaseInsensitiveContains(query)
+            }
+        }
+        return rows
+    }
+
+    public var scanSummary: String {
+        guard let tree else { return "" }
+        return "\(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles)) · \(Plural.folders(folderCount))"
+    }
+
+    // MARK: - Scanning
+
+    public func scan(path: String) {
+        let standardized: String
+        if path == "/" {
+            standardized = "/"
+        } else {
+            standardized = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL.path
+        }
+
+        cancellation?.cancel()
+        let token = ScanCancellation()
+        cancellation = token
+        activeScanID = UUID()
+        let scanID = activeScanID
+
+        phase = .scanning
+        progress = ScanProgress(currentPath: standardized)
+        selection = []
+        categoryFilter = nil
+        searchText = ""
+        lastScanPath = standardized
+        UserDefaults.standard.set(standardized, forKey: "lastScanPath")
+
+        let options = ScanOptions()
+        scanQueue.async { [weak self] in
+            guard let self else { return }
+            let scanner = DiskScanner(options: options)
+            do {
+                let result = try scanner.scan(path: standardized, cancellation: token, progress: { update in
+                    DispatchQueue.main.async {
+                        guard self.activeScanID == scanID else { return }
+                        self.progress = update
+                    }
+                })
+                DispatchQueue.main.async {
+                    guard self.activeScanID == scanID else { return }
+                    self.finishScan(result)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    guard self.activeScanID == scanID else { return }
+                    self.failScan(error, wasCancelled: token.isCancelled)
+                }
+            }
+        }
+    }
+
+    public func rescan() {
+        if let tree {
+            scan(path: tree.rootPath)
+        } else if let lastScanPath {
+            scan(path: lastScanPath)
+        } else {
+            scan(path: homePath)
+        }
+    }
+
+    public func cancelScan() {
+        cancellation?.cancel()
+        cancellation = nil
+        activeScanID = UUID()
+        progress = nil
+        phase = tree == nil ? .welcome : .ready
+    }
+
+    public func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.title = "Выберите папку для анализа"
+        panel.message = "DiskScope посчитает, что занимает место внутри выбранной папки."
+        panel.prompt = "Сканировать"
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        if panel.runModal() == .OK, let url = panel.url {
+            scan(path: url.path)
+        }
+    }
+
+    public func scanHome() {
+        scan(path: homePath)
+    }
+
+    public func scanVolume(_ volume: VolumeInfo) {
+        scan(path: volume.path)
+    }
+
+    private func finishScan(_ result: ScanTree) {
+        tree = result
+        phase = .ready
+        progress = nil
+        currentIndex = 0
+        selection = []
+        tab = .map
+        fileCount = result.totalFiles
+        folderCount = result.directoryCount()
+        refreshVolumes()
+        rebuildCurrentRows()
+        refreshDerived()
+    }
+
+    private func failScan(_ error: Error, wasCancelled: Bool) {
+        progress = nil
+        if wasCancelled {
+            phase = tree == nil ? .welcome : .ready
+            return
+        }
+        phase = .failed(error.localizedDescription)
+        errorMessage = error.localizedDescription
+    }
+
+    private func refreshDerived() {
+        guard let tree else { return }
+        derivedGeneration += 1
+        let generation = derivedGeneration
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let items = tree.largestItems(limit: 4000)
+            let rows = items.map { index in
+                Self.makeRow(tree: tree, index: index, parentSize: max(tree.totalSize, 1), includePaths: true)
+            }
+            let stats = tree.categoryStats()
+            DispatchQueue.main.async {
+                guard let self, self.derivedGeneration == generation, self.tree === tree else { return }
+                self.largestItems = rows
+                self.categoryStats = stats
+            }
+        }
+    }
+
+    public func refreshVolumes() {
+        volumes = VolumeInfo.loadAll()
+    }
+
+    // MARK: - Navigation
+
+    public func navigate(to index: Int32) {
+        guard let tree, index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return }
+        guard tree.node(index).nodeKind.isContainer else { return }
+        currentIndex = index
+        selection = []
+        searchText = ""
+        rebuildCurrentRows()
+    }
+
+    public func goUp() {
+        guard let tree else { return }
+        let parent = tree.node(currentIndex).parent
+        if parent >= 0 { navigate(to: parent) }
+    }
+
+    public func goToRoot() {
+        navigate(to: 0)
+    }
+
+    /// Double-click / Enter behaviour: folders open, everything else is revealed in Finder.
+    public func activateRow(_ index: Int32) {
+        guard let tree, index >= 0, Int(index) < tree.count else { return }
+        guard tree.node(index).nodeKind != .aggregate else { return }
+        if tree.node(index).nodeKind == .directory {
+            navigate(to: index)
+        } else {
+            reveal(indices: [index])
+        }
+    }
+
+    public func openRow(_ index: Int32) {
+        guard let tree, index >= 0, Int(index) < tree.count else { return }
+        let node = tree.node(index)
+        guard node.nodeKind != .aggregate else { return }
+        if node.nodeKind.isContainer {
+            navigate(to: index)
+        } else {
+            let url = tree.url(of: index)
+            if !NSWorkspace.shared.open(url) {
+                errorMessage = "Не удалось открыть «\(tree.name(of: index))»"
+            }
+        }
+    }
+
+    public func reveal(indices: [Int32]) {
+        guard let tree else { return }
+        let urls = indices.compactMap { index -> URL? in
+            guard index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return nil }
+            return tree.url(of: index)
+        }
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
+    }
+
+    public func revealSelection() {
+        reveal(indices: Array(selection))
+    }
+
+    public func revealCurrentFolder() {
+        guard let tree else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([tree.url(of: currentIndex)])
+    }
+
+    // MARK: - Trash
+
+    public func requestTrashSelection() {
+        guard canTrashSelection else { return }
+        showTrashConfirmation = true
+    }
+
+    public func confirmTrash() {
+        showTrashConfirmation = false
+        guard let tree, canTrashSelection else { return }
+        let indices = topLevelSelection()
+        guard !indices.isEmpty else { return }
+        let urls = indices.map { tree.url(of: $0) }
+        selection = []
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var trashed: [(index: Int32, url: URL)] = []
+            var failures: [(url: URL, message: String)] = []
+            for (offset, url) in urls.enumerated() {
+                do {
+                    try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                    trashed.append((indices[offset], url))
+                } catch {
+                    failures.append((url, error.localizedDescription))
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.applyTrash(tree: tree, trashed: trashed, failures: failures)
+            }
+        }
+    }
+
+    private func applyTrash(tree scanTree: ScanTree, trashed: [(index: Int32, url: URL)], failures: [(url: URL, message: String)]) {
+        guard !trashed.isEmpty else {
+            if let failure = failures.first {
+                errorMessage = "Не удалось переместить «\(failure.url.lastPathComponent)» в Корзину: \(failure.message)"
+            }
+            return
+        }
+        let removed = scanTree.removingSubtrees(at: trashed.map(\.index))
+        fileCount = removed.tree.totalFiles
+        folderCount = removed.tree.directoryCount()
+        tree = removed.tree
+        selection = []
+        // A package containing the current folder could be removed from the
+        // "largest" list; fall back to the nearest surviving ancestor.
+        if removed.tree.isDeleted(currentIndex) {
+            var cursor = currentIndex
+            while cursor > 0, removed.tree.isDeleted(cursor) {
+                cursor = removed.tree.node(cursor).parent
+            }
+            currentIndex = max(cursor, 0)
+        }
+        rebuildCurrentRows()
+        refreshVolumes()
+        refreshDerived()
+        showToast(
+            "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes))",
+            symbol: "trash.fill"
+        )
+        if let failure = failures.first {
+            errorMessage = "Часть объектов не удалось удалить. «\(failure.url.lastPathComponent)»: \(failure.message)"
+        }
+    }
+
+    private func topLevelSelection() -> [Int32] {
+        guard let tree else { return [] }
+        var result: [Int32] = []
+        for index in selection.sorted() {
+            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
+            var ancestor = tree.node(index).parent
+            var hasSelectedAncestor = false
+            while ancestor >= 0 {
+                if selection.contains(ancestor) {
+                    hasSelectedAncestor = true
+                    break
+                }
+                ancestor = tree.node(ancestor).parent
+            }
+            if !hasSelectedAncestor { result.append(index) }
+        }
+        return result
+    }
+
+    // MARK: - Table rows
+
+    public func rebuildCurrentRows() {
+        guard let tree, Int(currentIndex) < tree.count else {
+            currentRows = []
+            currentRowsTotal = 0
+            currentRowsTruncated = false
+            return
+        }
+        let parentSize = max(tree.node(currentIndex).size, 1)
+        var indices = tree.children(of: currentIndex)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            indices = indices.filter {
+                tree.name(of: $0).localizedCaseInsensitiveContains(query)
+            }
+        }
+        var rows: [ItemRow] = []
+        rows.reserveCapacity(min(indices.count, rowLimit))
+        for index in indices {
+            // Paths are only needed by the "largest" list; skip them here to keep
+            // huge folders (node_modules and friends) responsive.
+            rows.append(Self.makeRow(tree: tree, index: index, parentSize: parentSize, includePaths: false))
+        }
+        rows.sort(using: sortOrder)
+        currentRowsTotal = rows.count
+        currentRowsTruncated = rows.count > rowLimit
+        if rows.count > rowLimit { rows = Array(rows.prefix(rowLimit)) }
+        currentRows = rows
+    }
+
+    private static func makeRow(
+        tree: ScanTree,
+        index: Int32,
+        parentSize: Int64,
+        includePaths: Bool
+    ) -> ItemRow {
+        let node = tree.node(index)
+        let isAggregate = node.nodeKind == .aggregate
+        let name: String
+        if isAggregate {
+            name = "Мелкие файлы"
+        } else {
+            name = TreeNaming.name(tree: tree, index: index)
+        }
+        return ItemRow(
+            id: index,
+            name: name,
+            path: includePaths ? tree.path(of: index) : "",
+            relativePath: includePaths ? tree.relativePath(of: index) : "",
+            size: node.size,
+            category: tree.category(of: index),
+            isContainer: node.nodeKind.isContainer,
+            isAggregate: isAggregate,
+            itemCount: Int(node.itemCount),
+            fraction: parentSize > 0 ? Double(node.size) / Double(parentSize) : 0,
+            depth: 0
+        )
+    }
+
+    // MARK: - Type filter
+
+    public func showFiles(of category: FileCategory) {
+        categoryFilter = category
+        tab = .largest
+        searchText = ""
+    }
+
+    public func clearCategoryFilter() {
+        categoryFilter = nil
+    }
+
+    // MARK: - Permissions
+
+    public func openFullDiskAccessSettings() {
+        let candidates = [
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AllFiles",
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
+        ]
+        for candidate in candidates {
+            if let url = URL(string: candidate), NSWorkspace.shared.open(url) { return }
+        }
+    }
+
+    // MARK: - UI helpers
+
+    public func showToast(_ text: String, symbol: String = "checkmark.circle.fill") {
+        toast = Toast(text: text, symbol: symbol)
+        toastWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.toast = nil
+        }
+        toastWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.6, execute: item)
+    }
+
+    public func dismissError() {
+        errorMessage = nil
+    }
+
+    public func dismissToast() {
+        toastWorkItem?.cancel()
+        toast = nil
+    }
+
+    // MARK: - Previews / snapshots
+
+    public func loadPreview(tree: ScanTree) {
+        activeScanID = UUID()
+        cancellation?.cancel()
+        self.tree = tree
+        phase = .ready
+        currentIndex = 0
+        progress = nil
+        tab = .map
+        selection = []
+        fileCount = tree.totalFiles
+        folderCount = tree.directoryCount()
+        volumes = VolumeInfo.loadAll()
+        rebuildCurrentRows()
+        largestItems = tree.largestItems(limit: 4000).map {
+            Self.makeRow(tree: tree, index: $0, parentSize: max(tree.totalSize, 1), includePaths: true)
+        }
+        categoryStats = tree.categoryStats()
+    }
+
+    public func previewScanning(path: String, progress: ScanProgress) {
+        tree = nil
+        phase = .scanning
+        currentIndex = 0
+        self.progress = progress
+        volumes = VolumeInfo.loadAll()
+    }
+
+    public func previewWelcome() {
+        tree = nil
+        phase = .welcome
+        progress = nil
+        currentIndex = 0
+        volumes = VolumeInfo.loadAll()
+    }
+
+    public func previewSelect(index: Int32) {
+        selection = [index]
+    }
+
+    public func previewNavigate(to index: Int32) {
+        navigate(to: index)
+    }
+}
+
+/// Keeps aggregate folders readable in tables and treemaps.
+public enum TreeNaming {
+    public static func name(tree: ScanTree, index: Int32) -> String {
+        let node = tree.node(index)
+        if node.nodeKind == .aggregate {
+            return Plural.smallFiles(Int(node.itemCount))
+        }
+        let name = tree.name(of: index)
+        if name.isEmpty {
+            return index == 0 ? "Корень" : "Без имени"
+        }
+        return name
+    }
+}

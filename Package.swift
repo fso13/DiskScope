@@ -1,0 +1,18 @@
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "DiskScope",
+    platforms: [.macOS(.v14)],
+    products: [
+        .executable(name: "DiskScope", targets: ["DiskScope"]),
+        .executable(name: "diskscope-cli", targets: ["DiskScopeCLI"]),
+    ],
+    targets: [
+        .target(name: "DiskScopeKit"),
+        .executableTarget(name: "DiskScope", dependencies: ["DiskScopeKit"]),
+        .executableTarget(name: "DiskScopeCLI", dependencies: ["DiskScopeKit"]),
+        .executableTarget(name: "DiskScopeSnapshots", dependencies: ["DiskScopeKit"]),
+        .testTarget(name: "DiskScopeKitTests", dependencies: ["DiskScopeKit"]),
+    ]
+)

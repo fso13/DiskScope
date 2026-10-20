@@ -1,0 +1,64 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Debug DiskScope",
+            "target": "DiskScope",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug DiskScope"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Release DiskScope",
+            "target": "DiskScope",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release DiskScope"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Debug diskscope-cli",
+            "target": "diskscope-cli",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug diskscope-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Release diskscope-cli",
+            "target": "diskscope-cli",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release diskscope-cli"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Debug DiskScopeSnapshots",
+            "target": "DiskScopeSnapshots",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug DiskScopeSnapshots"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac free space}",
+            "name": "Release DiskScopeSnapshots",
+            "target": "DiskScopeSnapshots",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release DiskScopeSnapshots"
+        }
+    ]
+}

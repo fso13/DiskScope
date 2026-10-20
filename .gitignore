@@ -1,0 +1,9 @@
+.build/
+.cache/
+.tmp/
+dist/
+Support/icon-1024.png
+.DS_Store
+*.xcuserstate
+site/
+.venv/
