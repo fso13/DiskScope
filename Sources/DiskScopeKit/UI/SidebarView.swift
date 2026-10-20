@@ -6,7 +6,6 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            brand
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
                     volumeCard
@@ -18,7 +17,7 @@ struct SidebarView: View {
             footer
         }
         .padding(.horizontal, 14)
-        .padding(.top, 40)
+        .padding(.top, 14)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
         .background(sidebarBackground)
@@ -44,26 +43,6 @@ struct SidebarView: View {
             )
         }
         .ignoresSafeArea()
-    }
-
-    private var brand: some View {
-        HStack(spacing: 9) {
-            AppMark(size: 30)
-                .shadow(color: Theme.accent.opacity(0.5), radius: 9, y: 3)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("DiskScope")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("АНАЛИЗ ДИСКА")
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(1.2)
-                    .foregroundStyle(.white.opacity(0.32))
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.bottom, 20)
-        .padding(.leading, 2)
     }
 
     private var volumeCard: some View {

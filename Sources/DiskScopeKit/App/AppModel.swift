@@ -83,6 +83,7 @@ public final class AppModel: ObservableObject {
     @Published public var categoryFilter: FileCategory?
     @Published public var toast: Toast?
     @Published public var errorMessage: String?
+    @Published public var showCommandPalette = false
     @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")

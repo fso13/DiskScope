@@ -429,8 +429,12 @@ struct WindowConfigurator: NSViewRepresentable {
 
     private func configure(_ window: NSWindow?) {
         guard let window else { return }
+        window.styleMask.insert(.fullSizeContentView)
         window.isMovableByWindowBackground = true
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(calibratedRed: 0.055, green: 0.065, blue: 0.085, alpha: 1)
+        window.titleVisibility = .hidden
+        window.titlebarSeparatorStyle = .none
+        window.isOpaque = false
+        window.backgroundColor = .clear
     }
 }

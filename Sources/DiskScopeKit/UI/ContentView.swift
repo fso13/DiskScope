@@ -7,10 +7,14 @@ public struct ContentView: View {
     public init() {}
 
     public var body: some View {
-        HStack(spacing: 0) {
-            SidebarView()
-                .frame(width: Theme.sidebarWidth)
-            main
+        VStack(spacing: 0) {
+            WindowTitleBar()
+            HStack(spacing: 0) {
+                SidebarView()
+                    .frame(width: Theme.sidebarWidth)
+                main
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(backgroundLayer)
         .background(WindowConfigurator())

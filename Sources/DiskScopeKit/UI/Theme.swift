@@ -3,6 +3,7 @@ import SwiftUI
 
 enum Theme {
     static let sidebarWidth: CGFloat = 238
+    static let titleBarHeight: CGFloat = 46
 
     static let accent = Color(red: 0.34, green: 0.53, blue: 1.0)
     static let accentDeep = Color(red: 0.58, green: 0.36, blue: 1.0)

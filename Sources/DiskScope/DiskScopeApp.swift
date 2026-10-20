@@ -32,6 +32,9 @@ struct DiskScopeApp: App {
             }
 
             CommandGroup(after: .sidebar) {
+                Button("Палитра команд…") { model.showCommandPalette = true }
+                    .keyboardShortcut("k", modifiers: .command)
+                Divider()
                 Button("Карта папки") { model.tab = .map }
                     .keyboardShortcut("1", modifiers: .command)
                 Button("Крупнейшие объекты") { model.tab = .largest }
