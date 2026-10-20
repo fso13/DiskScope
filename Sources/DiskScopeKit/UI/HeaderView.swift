@@ -6,21 +6,25 @@ struct HeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
-            breadcrumbs
+            if model.tab != .media {
+                breadcrumbs
+            }
 
             HStack(alignment: .center, spacing: 16) {
                 titleBlock
                 Spacer(minLength: 12)
-                actions
+                if model.tab != .media {
+                    actions
+                }
             }
 
             HStack(spacing: 10) {
                 SegmentedTabs(selection: $model.tab)
                 Spacer(minLength: 8)
-                if model.tab != .types {
+                if model.tab == .map || model.tab == .largest {
                     SearchField(text: $model.searchText)
                 }
-                if let filter = model.categoryFilter {
+                if model.tab != .media, let filter = model.categoryFilter {
                     CategoryFilterChip(category: filter) {
                         model.clearCategoryFilter()
                     }
@@ -111,22 +115,34 @@ struct HeaderView: View {
 
     // MARK: - Title
 
+    @ViewBuilder
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(model.currentName)
-                .font(.system(size: 25, weight: .semibold))
-                .tracking(-0.4)
-                .lineLimit(1)
-                .truncationMode(.middle)
+        if model.tab == .media {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Медиа")
+                    .font(.system(size: 25, weight: .semibold))
+                    .tracking(-0.4)
+                Text("Поиск файлов по типам и перенос в папку или «Фото»")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(model.currentName)
+                    .font(.system(size: 25, weight: .semibold))
+                    .tracking(-0.4)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
 
-            HStack(spacing: 6) {
-                StatPill(symbol: "internaldrive", text: ByteFormat.string(model.currentSize))
-                StatPill(symbol: "doc.on.doc", text: Plural.files(model.currentItemCount))
-                StatPill(symbol: "square.stack.3d.up", text: Plural.elements(model.currentDirectCount))
-                if model.currentIndex != 0, let tree = model.tree {
-                    Text("\(ByteFormat.percent(model.currentSize, of: tree.totalSize)) от скана")
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(.tertiary)
+                HStack(spacing: 6) {
+                    StatPill(symbol: "internaldrive", text: ByteFormat.string(model.currentSize))
+                    StatPill(symbol: "doc.on.doc", text: Plural.files(model.currentItemCount))
+                    StatPill(symbol: "square.stack.3d.up", text: Plural.elements(model.currentDirectCount))
+                    if model.currentIndex != 0, let tree = model.tree {
+                        Text("\(ByteFormat.percent(model.currentSize, of: tree.totalSize)) от скана")
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
         }

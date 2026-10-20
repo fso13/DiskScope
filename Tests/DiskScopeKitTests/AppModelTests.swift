@@ -134,6 +134,23 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.currentRows.count, 2)
     }
 
+    func testMediaTabAndSourceSeeding() {
+        let model = AppModel()
+        XCTAssertEqual(AppModel.Tab.media.title, "Медиа")
+        XCTAssertEqual(AppModel.Tab.media.symbol, "photo.on.rectangle.angled")
+
+        model.media.seedCurrentFolder(scratch.path)
+        XCTAssertEqual(model.media.sources.count, 1)
+        XCTAssertEqual(model.media.sources.first?.path, scratch.standardizedFileURL.path)
+
+        model.media.seedCurrentFolder("/tmp")
+        XCTAssertEqual(model.media.sources.count, 1)
+
+        model.media.selectAllTypes()
+        XCTAssertEqual(model.media.types, Set(MediaType.allCases))
+        XCTAssertTrue(model.media.canSearch)
+    }
+
     func testWelcomeAndScanningPreviews() {
         let model = AppModel()
         model.previewWelcome()

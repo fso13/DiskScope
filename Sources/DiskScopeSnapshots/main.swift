@@ -74,6 +74,56 @@ final class SnapshotRenderer {
             render(model: model, named: "05-map-folder", dark: false)
         }
 
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let mediaFiles: [MediaFile] = [
+            MediaFile(path: home.appendingPathComponent("Pictures/Отпуск 2025/IMG_2041.HEIC").path,
+                      relativePath: "Отпуск 2025/IMG_2041.HEIC",
+                      sourceRoot: home.appendingPathComponent("Pictures").path,
+                      size: 5_400_000, kind: .image, modified: Date().addingTimeInterval(-86_400 * 3)),
+            MediaFile(path: home.appendingPathComponent("Pictures/Отпуск 2025/IMG_2039.JPG").path,
+                      relativePath: "Отпуск 2025/IMG_2039.JPG",
+                      sourceRoot: home.appendingPathComponent("Pictures").path,
+                      size: 4_800_000, kind: .image, modified: Date().addingTimeInterval(-86_400 * 4)),
+            MediaFile(path: home.appendingPathComponent("Pictures/Семейный альбом/IMG_1987.PNG").path,
+                      relativePath: "Семейный альбом/IMG_1987.PNG",
+                      sourceRoot: home.appendingPathComponent("Pictures").path,
+                      size: 3_200_000, kind: .image, modified: Date().addingTimeInterval(-86_400 * 11)),
+            MediaFile(path: home.appendingPathComponent("Music/track-01.mp3").path,
+                      relativePath: "track-01.mp3",
+                      sourceRoot: home.appendingPathComponent("Music").path,
+                      size: 9_100_000, kind: .audio, modified: Date().addingTimeInterval(-86_400 * 30)),
+            MediaFile(path: home.appendingPathComponent("Movies/clip.mov").path,
+                      relativePath: "clip.mov",
+                      sourceRoot: home.appendingPathComponent("Movies").path,
+                      size: 142_000_000, kind: .video, modified: Date().addingTimeInterval(-86_400 * 60)),
+            MediaFile(path: home.appendingPathComponent("Documents/report.pdf").path,
+                      relativePath: "report.pdf",
+                      sourceRoot: home.appendingPathComponent("Documents").path,
+                      size: 2_400_000, kind: .pdf, modified: Date().addingTimeInterval(-86_400 * 8)),
+            MediaFile(path: home.appendingPathComponent("Documents/letter.docx").path,
+                      relativePath: "letter.docx",
+                      sourceRoot: home.appendingPathComponent("Documents").path,
+                      size: 180_000, kind: .doc, modified: Date().addingTimeInterval(-86_400 * 15)),
+            MediaFile(path: home.appendingPathComponent("Documents/sheet.xlsx").path,
+                      relativePath: "sheet.xlsx",
+                      sourceRoot: home.appendingPathComponent("Documents").path,
+                      size: 96_000, kind: .document, modified: Date().addingTimeInterval(-86_400 * 20)),
+        ]
+        model.media.loadPreview(
+            sources: [
+                home.appendingPathComponent("Pictures"),
+                home.appendingPathComponent("Documents"),
+                home.appendingPathComponent("Music"),
+            ],
+            types: [.image, .audio, .video, .document],
+            files: mediaFiles,
+            destination: home.appendingPathComponent("Downloads/Медиа"),
+            selected: Set(mediaFiles.prefix(3).map(\.id))
+        )
+        model.tab = .media
+        render(model: model, named: "10-media-light", dark: false)
+        render(model: model, named: "11-media-dark", dark: true)
+
         model.previewWelcome()
         render(model: model, named: "06-welcome", dark: false)
         render(model: model, named: "07-welcome-dark", dark: true)

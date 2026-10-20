@@ -30,6 +30,10 @@
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>DiskScope импортирует выбранные изображения в вашу медиатеку «Фото».</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>DiskScope добавляет выбранные изображения в медиатеку «Фото».</string>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 DiskScope. Локальный анализ диска.</string>
 </dict>

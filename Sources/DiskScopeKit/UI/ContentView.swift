@@ -90,7 +90,7 @@ struct ReadyView: View {
         VStack(spacing: 0) {
             HeaderView()
 
-            if model.hasPermissionIssues {
+            if model.hasPermissionIssues && model.tab != .media {
                 PermissionBanner(
                     count: model.tree?.report.skippedItems ?? 0,
                     onDetails: { model.showPermissionSheet = true },
@@ -108,13 +108,17 @@ struct ReadyView: View {
                     LargestFilesView()
                 case .types:
                     TypesView()
+                case .media:
+                    MediaView(media: model.media)
                 }
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            StatusBar()
+            if model.tab != .media {
+                StatusBar()
+            }
         }
     }
 }

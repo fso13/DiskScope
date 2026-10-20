@@ -166,6 +166,7 @@ struct SegmentedTabs: View {
         case .map: return "Карта папки (⌘1)"
         case .largest: return "Самые крупные объекты (⌘2)"
         case .types: return "Распределение по типам (⌘3)"
+        case .media: return "Поиск и перенос медиа (⌘4)"
         }
     }
 }

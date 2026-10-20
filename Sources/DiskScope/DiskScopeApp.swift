@@ -38,6 +38,9 @@ struct DiskScopeApp: App {
                     .keyboardShortcut("2", modifiers: .command)
                 Button("Типы файлов") { model.tab = .types }
                     .keyboardShortcut("3", modifiers: .command)
+                Button("Медиа-поиск") { model.tab = .media }
+                    .keyboardShortcut("4", modifiers: .command)
+                    .disabled(model.tree == nil)
                 Divider()
                 Button("Наверх") { model.goUp() }
                     .keyboardShortcut(.upArrow, modifiers: .command)

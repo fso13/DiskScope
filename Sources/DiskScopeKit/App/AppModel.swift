@@ -15,6 +15,7 @@ public final class AppModel: ObservableObject {
         case map
         case largest
         case types
+        case media
 
         public var id: String { rawValue }
 
@@ -23,6 +24,7 @@ public final class AppModel: ObservableObject {
             case .map: return "Карта"
             case .largest: return "Крупнейшие"
             case .types: return "Типы файлов"
+            case .media: return "Медиа"
             }
         }
 
@@ -31,6 +33,7 @@ public final class AppModel: ObservableObject {
             case .map: return "square.grid.2x2"
             case .largest: return "list.number"
             case .types: return "chart.bar.xaxis"
+            case .media: return "photo.on.rectangle.angled"
             }
         }
     }
@@ -69,6 +72,7 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var folderCount = 0
     @Published public private(set) var largestItems: [ItemRow] = []
     @Published public private(set) var categoryStats: [CategoryStat] = []
+    @Published public private(set) var media = MediaModel()
     @Published public private(set) var currentRows: [ItemRow] = []
     @Published public private(set) var currentRowsTotal = 0
     @Published public private(set) var currentRowsTruncated = false
@@ -90,7 +94,9 @@ public final class AppModel: ObservableObject {
     private var derivedGeneration = 0
     private let rowLimit = 2500
 
-    public init() {}
+    public init() {
+        media.attach(appModel: self)
+    }
 
     // MARK: - Derived state
 

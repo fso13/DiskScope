@@ -9,7 +9,10 @@ let package = Package(
         .executable(name: "diskscope-cli", targets: ["DiskScopeCLI"]),
     ],
     targets: [
-        .target(name: "DiskScopeKit"),
+        .target(
+            name: "DiskScopeKit",
+            linkerSettings: [.linkedFramework("Photos")]
+        ),
         .executableTarget(name: "DiskScope", dependencies: ["DiskScopeKit"]),
         .executableTarget(name: "DiskScopeCLI", dependencies: ["DiskScopeKit"]),
         .executableTarget(name: "DiskScopeSnapshots", dependencies: ["DiskScopeKit"]),

@@ -172,7 +172,7 @@ struct SidebarView: View {
             ForEach(locations) { location in
                 SidebarRow(
                     location: location,
-                    isActive: model.phase == .ready && model.tree?.rootPath == location.path,
+                    isActive: model.tab != .media && model.phase == .ready && model.tree?.rootPath == location.path,
                     isScanning: model.isScanning && model.progress?.currentPath.hasPrefix(location.path) == true
                 ) {
                     model.scan(path: location.path)

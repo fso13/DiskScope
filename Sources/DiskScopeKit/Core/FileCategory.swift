@@ -83,6 +83,20 @@ public enum FileCategory: Int, CaseIterable, Identifiable, Sendable {
         return .other
     }
 
+    /// Extensions belonging to a broad category. Used by the media search so
+    /// it stays in sync with the colours and the "Types" screen.
+    public static func extensions(for category: FileCategory) -> Set<String> {
+        switch category {
+        case .video: return videoExtensions
+        case .image: return imageExtensions
+        case .audio: return audioExtensions
+        case .archive: return archiveExtensions
+        case .document: return documentExtensions
+        case .code: return codeExtensions
+        case .app, .other: return []
+        }
+    }
+
     /// Categories used by a directory package, based on its bundle extension.
     public static func forPackageExtension(_ ext: String) -> FileCategory {
         .app
