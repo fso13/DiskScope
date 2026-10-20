@@ -19,7 +19,7 @@ COMMON_FLAGS=(
 if [ "$UNIVERSAL" = "1" ]; then
   echo "==> Building DiskScope ${VERSION} (universal: arm64 + x86_64)"
   SCRATCH="$ROOT/.build/universal"
-  swift build -c release --arch arm64 --arch x86_64 \
+  swift build -c release --product DiskScope --arch arm64 --arch x86_64 \
     --scratch-path "$SCRATCH" "${COMMON_FLAGS[@]}"
   BINARY="$SCRATCH/out/Products/Release/DiskScope"
   if [ ! -f "$BINARY" ]; then
@@ -36,7 +36,7 @@ if [ "$UNIVERSAL" = "1" ]; then
   fi
 else
   echo "==> Building DiskScope ${VERSION} (host architecture)"
-  swift build -c release --scratch-path "$ROOT/.build" "${COMMON_FLAGS[@]}"
+  swift build -c release --product DiskScope --scratch-path "$ROOT/.build" "${COMMON_FLAGS[@]}"
   BINARY="$ROOT/.build/release/DiskScope"
 fi
 

@@ -9,7 +9,7 @@ hide:
 <p class="hero-role">macOS disk analyzer</p>
 <h1 class="hero-name">DiskScope</h1>
 <p class="hero-lead">Нативный анализатор диска: тепловая карта, крупнейшие файлы и очистка в Корзину. SwiftUI, APFS, без облака.</p>
-<p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span>v1.0.0 · macOS 14+ · universal</span></p>
+<p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span>v1.1.0 · macOS 14+ · universal</span></p>
 <div class="hero-actions">
 <a class="btn btn-primary" href="https://github.com/fso13/DiskScope/releases/latest/download/DiskScope-macos-universal.zip">Скачать последний релиз</a>
 <a class="btn btn-ghost" href="https://github.com/fso13/DiskScope/releases">Все релизы</a>
@@ -144,7 +144,7 @@ Universal-сборка для Apple Silicon и Intel, macOS 14+. Подпись 
 <p class="eyebrow">Releases</p>
 ## Что нового {#releases}
 
-Текущий релиз — **v1.0.0**. [Все релизы](https://github.com/fso13/DiskScope/releases) ·
+Текущий релиз — **v1.1.0**. [Все релизы](https://github.com/fso13/DiskScope/releases) ·
 [CHANGELOG](https://github.com/fso13/DiskScope/blob/main/CHANGELOG.md).
 
 DiskScope сканирует диск локально, показывает карту и крупнейшие объекты,
