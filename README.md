@@ -194,6 +194,8 @@ python3 -m venv .venv
 
 ## CI и релизы
 
+- [Wiki](https://github.com/fso13/DiskScope/wiki) — установка, возможности,
+  настройки, архитектура, FAQ и решение проблем.
 - [release.yml](.github/workflows/release.yml) — по тегу `v*`: тесты,
   universal-сборка, артефакт workflow и GitHub Release с описанием из
   [CHANGELOG.md](CHANGELOG.md), прямыми ссылками на DMG/ZIP и страницу
