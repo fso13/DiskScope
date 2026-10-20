@@ -93,7 +93,7 @@ MKDOCS_SITE_URL=http://localhost:8000/ .venv/bin/mkdocs build --strict
 
 ## Тесты
 
-40 XCTest-тестов покрывают:
+41 XCTest-тест покрывают:
 
 - сканер и точность суммы против `du`;
 - агрегацию мелких файлов, пакеты, симлинки, Unicode-имена;

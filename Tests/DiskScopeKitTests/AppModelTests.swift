@@ -165,4 +165,21 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.progress?.bytes, 1024)
         XCTAssertTrue(model.isScanning)
     }
+
+    func testScanRequestIsIgnoredWhileScanning() {
+        let model = AppModel()
+        model.previewScanning(
+            path: scratch.path,
+            progress: ScanProgress(entries: 10, bytes: 1024, currentPath: scratch.path, elapsed: 1)
+        )
+
+        model.scan(path: "/tmp/DiskScope-should-not-start")
+        model.scanHome()
+        model.rescan()
+
+        XCTAssertEqual(model.phase, .scanning)
+        XCTAssertEqual(model.progress?.currentPath, scratch.path)
+        XCTAssertEqual(model.progress?.bytes, 1024)
+        XCTAssertTrue(model.isScanning)
+    }
 }

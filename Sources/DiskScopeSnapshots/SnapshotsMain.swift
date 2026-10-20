@@ -140,6 +140,61 @@ final class SnapshotRenderer {
             )
         )
         render(model: model, named: "08-scanning", dark: false)
+
+        renderSettings(named: "12-settings-light", dark: false)
+        renderSettings(named: "13-settings-dark", dark: true)
+    }
+
+    private func renderSettings(named name: String, dark: Bool) {
+        UserDefaults.standard.set("system", forKey: "app.settings.appearance")
+        UserDefaults.standard.set(true, forKey: "app.settings.confirmTrash")
+        let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        NSApplication.shared.appearance = appearance
+
+        let settingsSize = CGSize(width: 560, height: 600)
+        let root = SettingsView()
+            .frame(width: settingsSize.width, height: settingsSize.height)
+        let hosting = NSHostingView(rootView: root)
+        hosting.frame = NSRect(origin: .zero, size: settingsSize)
+        hosting.appearance = appearance
+
+        let window = NSWindow(
+            contentRect: hosting.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.appearance = appearance
+        window.backgroundColor = .black
+        window.isOpaque = true
+        window.contentView = hosting
+        window.ignoresMouseEvents = true
+        window.setFrameOrigin(NSPoint(x: -24000, y: -24000))
+        window.orderFrontRegardless()
+
+        hosting.needsLayout = true
+        hosting.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        hosting.layoutSubtreeIfNeeded()
+
+        guard let representation = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            FileHandle.standardError.write(Data("No bitmap for \(name)\n".utf8))
+            window.orderOut(nil)
+            return
+        }
+        representation.size = settingsSize
+        hosting.cacheDisplay(in: hosting.bounds, to: representation)
+
+        if let data = representation.representation(using: .png, properties: [:]) {
+            let url = outputDirectory.appendingPathComponent(name + ".png")
+            do {
+                try data.write(to: url)
+                FileHandle.standardError.write(Data("  wrote \(url.lastPathComponent)\n".utf8))
+            } catch {
+                FileHandle.standardError.write(Data("  failed to write \(name): \(error)\n".utf8))
+            }
+        }
+        window.orderOut(nil)
     }
 
     private func findNode(in tree: ScanTree, components: [String]) -> Int32? {

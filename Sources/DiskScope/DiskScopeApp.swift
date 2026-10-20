@@ -18,15 +18,24 @@ struct DiskScopeApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
 
+            CommandGroup(replacing: .appSettings) {
+                SettingsLink {
+                    Text("Настройки…")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandMenu("Диск") {
                 Button("Сканировать домашнюю папку") { model.scanHome() }
                     .keyboardShortcut("h", modifiers: [.command, .shift])
+                    .disabled(model.isScanning)
                 Button("Выбрать папку…") { model.chooseFolder() }
                     .keyboardShortcut("o", modifiers: .command)
+                    .disabled(model.isScanning)
                 Divider()
                 Button("Сканировать снова") { model.rescan() }
                     .keyboardShortcut("r", modifiers: .command)
-                    .disabled(model.tree == nil)
+                    .disabled(model.tree == nil || model.isScanning)
                 Button("Остановить сканирование") { model.cancelScan() }
                     .disabled(!model.isScanning)
             }
@@ -61,6 +70,10 @@ struct DiskScopeApp: App {
                     .keyboardShortcut(.delete, modifiers: .command)
                     .disabled(!model.canTrashSelection)
             }
+        }
+
+        Settings {
+            SettingsView()
         }
     }
 }

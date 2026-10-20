@@ -96,6 +96,10 @@ public final class AppModel: ObservableObject {
     private let rowLimit = 2500
 
     public init() {
+        UserDefaults.standard.register(defaults: [
+            AppSettingsKeys.appearance: AppAppearance.system.rawValue,
+            AppSettingsKeys.confirmTrash: true,
+        ])
         media.attach(appModel: self)
     }
 
@@ -233,6 +237,8 @@ public final class AppModel: ObservableObject {
     // MARK: - Scanning
 
     public func scan(path: String) {
+        guard !isScanning else { return }
+
         let standardized: String
         if path == "/" {
             standardized = "/"
@@ -297,6 +303,7 @@ public final class AppModel: ObservableObject {
     }
 
     public func chooseFolder() {
+        guard !isScanning else { return }
         let panel = NSOpenPanel()
         panel.title = "Выберите папку для анализа"
         panel.message = "DiskScope посчитает, что занимает место внутри выбранной папки."
@@ -434,7 +441,11 @@ public final class AppModel: ObservableObject {
 
     public func requestTrashSelection() {
         guard canTrashSelection else { return }
-        showTrashConfirmation = true
+        if UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
+            showTrashConfirmation = true
+        } else {
+            confirmTrash()
+        }
     }
 
     public func confirmTrash() {

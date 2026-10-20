@@ -6,6 +6,7 @@ import SwiftUI
 /// title bar, so this row visually replaces it.
 struct WindowTitleBar: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         HStack(spacing: 0) {
@@ -78,6 +79,22 @@ struct WindowTitleBar: View {
             }
 
             Spacer(minLength: 12)
+
+            Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
+                    .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(Theme.border, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Настройки (⌘,)")
 
             HStack(spacing: 6) {
                 Circle()
@@ -191,6 +208,7 @@ private struct WindowDragArea: NSViewRepresentable {
 
 struct CommandPaletteView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.openSettings) private var openSettings
     @State private var query = ""
     @FocusState private var searchFocused: Bool
 
@@ -307,40 +325,7 @@ struct CommandPaletteView: View {
     }
 
     private var commands: [PaletteCommand] {
-        var items: [PaletteCommand] = [
-            PaletteCommand(
-                id: "scan-home",
-                title: "Сканировать домашнюю папку",
-                subtitle: "Диск",
-                symbol: "house.fill",
-                shortcut: "⇧⌘H"
-            ) {
-                model.scanHome()
-            },
-            PaletteCommand(
-                id: "choose-folder",
-                title: "Выбрать папку…",
-                subtitle: "Диск",
-                symbol: "folder.badge.plus",
-                shortcut: "⌘O"
-            ) {
-                model.chooseFolder()
-            },
-        ]
-
-        if model.tree != nil {
-            items.append(
-                PaletteCommand(
-                    id: "rescan",
-                    title: "Сканировать снова",
-                    subtitle: "Диск",
-                    symbol: "arrow.clockwise",
-                    shortcut: "⌘R"
-                ) {
-                    model.rescan()
-                }
-            )
-        }
+        var items: [PaletteCommand] = []
 
         if model.isScanning {
             items.append(
@@ -354,6 +339,40 @@ struct CommandPaletteView: View {
                     model.cancelScan()
                 }
             )
+        } else {
+            items.append(contentsOf: [
+                PaletteCommand(
+                    id: "scan-home",
+                    title: "Сканировать домашнюю папку",
+                    subtitle: "Диск",
+                    symbol: "house.fill",
+                    shortcut: "⇧⌘H"
+                ) {
+                    model.scanHome()
+                },
+                PaletteCommand(
+                    id: "choose-folder",
+                    title: "Выбрать папку…",
+                    subtitle: "Диск",
+                    symbol: "folder.badge.plus",
+                    shortcut: "⌘O"
+                ) {
+                    model.chooseFolder()
+                },
+            ])
+            if model.tree != nil {
+                items.append(
+                    PaletteCommand(
+                        id: "rescan",
+                        title: "Сканировать снова",
+                        subtitle: "Диск",
+                        symbol: "arrow.clockwise",
+                        shortcut: "⌘R"
+                    ) {
+                        model.rescan()
+                    }
+                )
+            }
         }
 
         items.append(contentsOf: [
@@ -430,6 +449,15 @@ struct CommandPaletteView: View {
         }
 
         items.append(contentsOf: [
+            PaletteCommand(
+                id: "settings",
+                title: "Настройки…",
+                subtitle: "Приложение",
+                symbol: "gearshape",
+                shortcut: "⌘,"
+            ) {
+                openSettings()
+            },
             PaletteCommand(
                 id: "permissions",
                 title: "Полный доступ к диску…",

@@ -3,6 +3,7 @@ import SwiftUI
 
 public struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @AppStorage(AppSettingsKeys.appearance) private var appearance = AppAppearance.system.rawValue
 
     public init() {}
 
@@ -35,6 +36,7 @@ public struct ContentView: View {
             PermissionSheet(samples: model.tree?.report.sampleSkippedPaths ?? [])
         }
         .onAppear { model.refreshVolumes() }
+        .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
     }
 
     private var trashMessage: String {
