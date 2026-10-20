@@ -151,7 +151,7 @@ final class SnapshotRenderer {
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         NSApplication.shared.appearance = appearance
 
-        let settingsSize = CGSize(width: 560, height: 600)
+        let settingsSize = CGSize(width: 560, height: 680)
         let root = SettingsView()
             .frame(width: settingsSize.width, height: settingsSize.height)
         let hosting = NSHostingView(rootView: root)

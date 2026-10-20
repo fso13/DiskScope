@@ -4,6 +4,7 @@ import SwiftUI
 public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @AppStorage(AppSettingsKeys.confirmTrash) private var confirmTrash = true
+    @StateObject private var updater = UpdateChecker()
 
     public init() {}
 
@@ -14,13 +15,14 @@ public struct SettingsView: View {
                 VStack(spacing: 14) {
                     appearanceSection
                     scanningSection
+                    updatesSection
                     aboutSection
                     resetRow
                 }
                 .padding(20)
             }
         }
-        .frame(width: 560, height: 600)
+        .frame(width: 560, height: 680)
         .background(Theme.background)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
         .tint(Theme.accent)
@@ -113,6 +115,81 @@ public struct SettingsView: View {
         }
     }
 
+    private var updatesSection: some View {
+        SettingsCard(title: "Обновления", symbol: "arrow.triangle.2.circlepath") {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(updateTitle)
+                        .font(.system(size: 11.5, weight: .medium))
+                    Text(updateDetail)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                updateAction
+            }
+
+            Text("Сеть используется только для этого запроса; файлы и результаты сканирования не отправляются.")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var updateAction: some View {
+        switch updater.state {
+        case .checking:
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 86)
+        case .available(let release):
+            Button("Скачать") {
+                NSWorkspace.shared.open(release.downloadURL ?? release.pageURL)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        case .failed:
+            Button("Повторить") {
+                updater.check(currentVersion: version)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        default:
+            Button("Проверить") {
+                updater.check(currentVersion: version)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+    }
+
+    private var updateTitle: String {
+        switch updater.state {
+        case .idle: return "Проверка обновлений"
+        case .checking: return "Проверяем обновления…"
+        case .upToDate: return "Установлена последняя версия"
+        case .available(let release): return "Доступна версия \(release.version)"
+        case .failed: return "Не удалось проверить"
+        }
+    }
+
+    private var updateDetail: String {
+        switch updater.state {
+        case .idle:
+            return "Текущая версия \(version). Запрос выполняется только по кнопке."
+        case .checking:
+            return "Запрашиваем GitHub Releases…"
+        case .upToDate(let current):
+            return "DiskScope \(current) — обновлений нет."
+        case .available:
+            return "Текущая версия \(version). Скачайте DMG и замените приложение."
+        case .failed(let message):
+            return message
+        }
+    }
+
     private var aboutSection: some View {
         SettingsCard(title: "О программе", symbol: "info.circle") {
             SettingsRow(label: "Версия", value: version)
@@ -134,7 +211,7 @@ public struct SettingsView: View {
             .controlSize(.small)
             .font(.system(size: 10.5, weight: .medium))
 
-            Text("DiskScope работает полностью локально и не отправляет данные в сеть.")
+            Text("Сканирование и файлы остаются локальными. Сеть используется только для проверки обновлений.")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 1)

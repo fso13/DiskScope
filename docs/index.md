@@ -23,7 +23,7 @@ hide:
 <div class="hero-meta" role="list">
 <div role="listitem"><span>Архитектуры</span><strong>Apple · Intel</strong></div>
 <div role="listitem"><span>Сканер</span><strong>getattrlistbulk</strong></div>
-<div role="listitem"><span>Приватность</span><strong>Только локально</strong></div>
+<div role="listitem"><span>Приватность</span><strong>Локально</strong></div>
 </div>
 </div>
 <aside class="hero-panel" aria-hidden="true">
@@ -50,8 +50,9 @@ hide:
 </section>
 
 !!! info "Аналог Disk Space Analyzer"
-    DiskScope написан на SwiftUI и работает локально: не отправляет данные в
-    сеть, не использует сторонние библиотеки и не требует установки демонов.
+    DiskScope написан на SwiftUI и анализирует диск локально: файлы и
+    результаты не отправляются в сеть. Сеть используется только для проверки
+    обновлений по кнопке в настройках. Сторонних библиотек и демонов нет.
     Сканирование идёт напрямую через `getattrlistbulk` и `openat`.
 
 <p class="eyebrow">Features</p>

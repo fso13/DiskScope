@@ -182,4 +182,12 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.progress?.bytes, 1024)
         XCTAssertTrue(model.isScanning)
     }
+
+    func testUpdateVersionComparison() {
+        XCTAssertTrue(UpdateChecker.isNewer("v1.1.2", than: "1.1.1"))
+        XCTAssertFalse(UpdateChecker.isNewer("1.1.1", than: "1.1.1"))
+        XCTAssertTrue(UpdateChecker.isNewer("1.2", than: "1.1.9"))
+        XCTAssertFalse(UpdateChecker.isNewer("1.1.0", than: "1.1.1"))
+        XCTAssertTrue(UpdateChecker.isNewer("2.0.0", than: "1.99.99"))
+    }
 }
