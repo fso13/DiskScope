@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Test, build and publish
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+          xcodebuild -version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build universal app
+        env:
+          UNIVERSAL: '1'
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          export VERSION
+          ./build.sh
+
+          ARCHIVE_NAME="DiskScope-${VERSION}-macos-universal.zip"
+          mv dist/DiskScope.zip "dist/${ARCHIVE_NAME}"
+          (cd dist && shasum -a 256 "${ARCHIVE_NAME}" > SHA256SUMS.txt)
+          HASH="$(awk '{print $1}' dist/SHA256SUMS.txt)"
+
+          {
+            echo "VERSION=${VERSION}"
+            echo "ARCHIVE_NAME=${ARCHIVE_NAME}"
+            echo "ARCHIVE_SHA256=${HASH}"
+          } >> "$GITHUB_ENV"
+
+      - name: Verify bundle
+        run: |
+          set -euo pipefail
+          codesign --verify --deep --strict dist/DiskScope.app
+          lipo -info dist/DiskScope.app/Contents/MacOS/DiskScope
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" dist/DiskScope.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" dist/DiskScope.app/Contents/Info.plist
+          test -f "dist/${ARCHIVE_NAME}"
+          test -f dist/SHA256SUMS.txt
+
+      - name: Create release notes
+        run: |
+          set -euo pipefail
+          ./scripts/release-notes.sh "${GITHUB_REF_NAME}" > release-notes.md
+          {
+            echo
+            echo "## Установка"
+            echo
+            echo "1. Скачайте \`${ARCHIVE_NAME}\` и распакуйте архив."
+            echo "2. Перетащите \`DiskScope.app\` в «Программы»."
+            echo "3. Если macOS не даёт открыть приложение, используйте контекстное меню → «Открыть»."
+            echo "4. Для полного сканирования выдайте «Полный доступ к диску» и перезапустите DiskScope."
+            echo
+            echo "Архив собран universal: Apple Silicon и Intel (macOS 14+)."
+            echo
+            echo "**SHA-256:** \`${ARCHIVE_SHA256}\`"
+          } >> release-notes.md
+          echo "----- release notes -----"
+          cat release-notes.md
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DiskScope-${{ github.ref_name }}
+          path: |
+            dist/DiskScope-*.zip
+            dist/SHA256SUMS.txt
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: DiskScope ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: |
+            dist/DiskScope-*.zip
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
+
+      - name: Job summary
+        run: |
+          {
+            echo "## DiskScope ${GITHUB_REF_NAME}"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Архив | \`${ARCHIVE_NAME}\` |"
+            echo "| SHA-256 | \`${ARCHIVE_SHA256}\` |"
+            echo "| Архитектуры | arm64 + x86_64 |"
+            echo "| Тесты | 23 XCTest |"
+          } >> "$GITHUB_STEP_SUMMARY"
