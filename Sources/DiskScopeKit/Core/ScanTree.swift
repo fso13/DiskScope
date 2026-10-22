@@ -32,6 +32,48 @@ public struct ScanNode: Sendable {
     /// Dominant file category of the subtree (used to colour folders).
     public var dominant: UInt8 = UInt8(FileCategory.other.rawValue)
 
+    /// Creation day as a day number since 2001-01-01 UTC, or `unknownDay`.
+    public var createdDays: Int32 = ScanNode.unknownDay
+    /// Last modification day as a day number since 2001-01-01 UTC, or `unknownDay`.
+    public var modifiedDays: Int32 = ScanNode.unknownDay
+
+    /// Sentinel for entries whose timestamps were not returned by the filesystem.
+    public static let unknownDay = Int32.min
+
+    private static let referenceEpoch: Int64 = 978_307_200
+    private static let secondsPerDay: Int64 = 86_400
+
+    /// Converts Unix seconds to a day number, flooring dates before 2001.
+    static func dayNumber(seconds: Int64) -> Int32 {
+        let day = Int64(floor((Double(seconds) - Double(referenceEpoch)) / Double(secondsPerDay)))
+        guard day > Int64(Int32.min), day < Int64(Int32.max) else { return unknownDay }
+        return Int32(day)
+    }
+
+    /// Creation timestamp where zero means the filesystem did not provide one.
+    static func creationDay(seconds: Int64) -> Int32 {
+        seconds > 0 ? dayNumber(seconds: seconds) : unknownDay
+    }
+
+    /// Noon UTC of the given day: stable when formatted in any local timezone.
+    static func date(day: Int32) -> Date? {
+        guard day != unknownDay else { return nil }
+        let seconds = referenceEpoch + Int64(day) * secondsPerDay + 43_200
+        return Date(timeIntervalSince1970: TimeInterval(seconds))
+    }
+
+    static func earlierDay(_ lhs: Int32, _ rhs: Int32) -> Int32 {
+        if lhs == unknownDay { return rhs }
+        if rhs == unknownDay { return lhs }
+        return min(lhs, rhs)
+    }
+
+    static func laterDay(_ lhs: Int32, _ rhs: Int32) -> Int32 {
+        if lhs == unknownDay { return rhs }
+        if rhs == unknownDay { return lhs }
+        return max(lhs, rhs)
+    }
+
     public var nodeKind: NodeKind {
         get { NodeKind(rawValue: kind) ?? .file }
         set { kind = newValue.rawValue }
@@ -128,6 +170,30 @@ public final class ScanTree {
         let name = name(of: index)
         guard let dot = name.lastIndex(of: "."), dot < name.index(before: name.endIndex) else { return "" }
         return String(name[name.index(after: dot)...]).lowercased()
+    }
+
+    /// Creation day as a day number since 2001-01-01 UTC, or `nil` when unknown.
+    public func createdDay(of index: Int32) -> Int32? {
+        guard index >= 0, Int(index) < nodes.count else { return nil }
+        let day = nodes[Int(index)].createdDays
+        return day == ScanNode.unknownDay ? nil : day
+    }
+
+    /// Last modification day as a day number since 2001-01-01 UTC, or `nil` when unknown.
+    public func modifiedDay(of index: Int32) -> Int32? {
+        guard index >= 0, Int(index) < nodes.count else { return nil }
+        let day = nodes[Int(index)].modifiedDays
+        return day == ScanNode.unknownDay ? nil : day
+    }
+
+    /// Creation date at noon UTC (day precision), or `nil` when unknown.
+    public func created(of index: Int32) -> Date? {
+        createdDay(of: index).flatMap { ScanNode.date(day: $0) }
+    }
+
+    /// Last modification date at noon UTC (day precision), or `nil` when unknown.
+    public func modified(of index: Int32) -> Date? {
+        modifiedDay(of: index).flatMap { ScanNode.date(day: $0) }
     }
 
     public func category(of index: Int32) -> FileCategory {

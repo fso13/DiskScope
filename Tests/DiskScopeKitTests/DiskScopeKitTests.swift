@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 @testable import DiskScopeKit
@@ -60,6 +61,32 @@ final class ScannerTests: XCTestCase {
 
     private func child(named name: String, in tree: ScanTree, parent: Int32 = 0) -> Int32? {
         tree.children(of: parent).first { tree.name(of: $0) == name }
+    }
+
+    private struct FileTimes {
+        var created: timespec
+        var modified: timespec
+    }
+
+    /// Sets creation and modification dates in one `setattrlist` call.
+    private func setTimes(created: Date, modified: Date, at url: URL) throws {
+        var list = attrlist()
+        list.bitmapcount = 5
+        list.commonattr = 0x0000_0200 | 0x0000_0400
+        var times = FileTimes(
+            created: timespec(tv_sec: Int(created.timeIntervalSince1970), tv_nsec: 0),
+            modified: timespec(tv_sec: Int(modified.timeIntervalSince1970), tv_nsec: 0)
+        )
+        let result = withUnsafeMutablePointer(to: &times) { pointer in
+            setattrlist(
+                url.path,
+                &list,
+                UnsafeMutableRawPointer(pointer),
+                MemoryLayout<FileTimes>.size,
+                0
+            )
+        }
+        XCTAssertEqual(result, 0, "setattrlist failed for \(url.path): \(errno)")
     }
 
     // MARK: - Tests
@@ -131,6 +158,77 @@ final class ScannerTests: XCTestCase {
         let link = try XCTUnwrap(child(named: "link", in: tree))
         XCTAssertEqual(tree.node(link).nodeKind, .symlink)
         XCTAssertEqual(tree.node(link).size, 0)
+    }
+
+    func testScannerReadsCreationAndModificationDates() throws {
+        let root = try makeFixture()
+        let folder = root.appendingPathComponent("Dated", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("note.txt")
+        try Data(repeating: 0x41, count: 4096).write(to: file)
+        try setTimes(
+            created: Date(timeIntervalSince1970: 1_500_000_000),
+            modified: Date(timeIntervalSince1970: 1_650_000_000),
+            at: file
+        )
+
+        let tree = try scan(root, threshold: 0)
+        let dated = try XCTUnwrap(child(named: "Dated", in: tree))
+        let note = try XCTUnwrap(child(named: "note.txt", in: tree, parent: dated))
+
+        XCTAssertEqual(tree.createdDay(of: note), ScanNode.dayNumber(seconds: 1_500_000_000))
+        XCTAssertEqual(tree.modifiedDay(of: note), ScanNode.dayNumber(seconds: 1_650_000_000))
+        XCTAssertEqual(
+            tree.created(of: note),
+            ScanNode.date(day: ScanNode.dayNumber(seconds: 1_500_000_000))
+        )
+        XCTAssertEqual(
+            tree.modified(of: note),
+            ScanNode.date(day: ScanNode.dayNumber(seconds: 1_650_000_000))
+        )
+        XCTAssertNotNil(tree.created(of: 0))
+        XCTAssertNotNil(tree.modified(of: 0))
+    }
+
+    func testAggregateUsesOldestCreationAndLatestModification() throws {
+        let root = scratch.appendingPathComponent("Aggregates", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let oldFile = root.appendingPathComponent("old.txt")
+        let newFile = root.appendingPathComponent("new.txt")
+        try Data(repeating: 1, count: 1024).write(to: oldFile)
+        try Data(repeating: 2, count: 1024).write(to: newFile)
+        try setTimes(
+            created: Date(timeIntervalSince1970: 1_400_000_000),
+            modified: Date(timeIntervalSince1970: 1_450_000_000),
+            at: oldFile
+        )
+        try setTimes(
+            created: Date(timeIntervalSince1970: 1_600_000_000),
+            modified: Date(timeIntervalSince1970: 1_700_000_000),
+            at: newFile
+        )
+
+        let tree = try scan(root)
+        let aggregate = try XCTUnwrap(
+            tree.children(of: 0).first { tree.node($0).nodeKind == .aggregate }
+        )
+        XCTAssertEqual(tree.createdDay(of: aggregate), ScanNode.dayNumber(seconds: 1_400_000_000))
+        XCTAssertEqual(tree.modifiedDay(of: aggregate), ScanNode.dayNumber(seconds: 1_700_000_000))
+    }
+
+    func testDayNumberConversion() {
+        XCTAssertEqual(ScanNode.dayNumber(seconds: 978_307_200), 0)
+        XCTAssertEqual(ScanNode.dayNumber(seconds: 978_307_199), -1)
+        XCTAssertEqual(ScanNode.dayNumber(seconds: 978_307_200 + 86_399), 0)
+        XCTAssertEqual(ScanNode.dayNumber(seconds: 978_307_200 + 86_400), 1)
+        XCTAssertNil(ScanNode.date(day: ScanNode.unknownDay))
+        XCTAssertEqual(ScanNode.creationDay(seconds: 0), ScanNode.unknownDay)
+        XCTAssertEqual(ScanNode.creationDay(seconds: 1_500_000_000), ScanNode.dayNumber(seconds: 1_500_000_000))
+        XCTAssertEqual(
+            ScanNode.date(day: 0)?.timeIntervalSince1970 ?? 0,
+            978_307_200 + 43_200,
+            accuracy: 0.5
+        )
     }
 
     func testUnicodePathsAndNames() throws {
