@@ -365,3 +365,10 @@
 
 "Обновления не настроены в этой сборке" = "Updates are not configured in this build";
 "Задайте SUPublicEDKey и SUFeedURL при сборке релиза." = "Set SUPublicEDKey and SUFeedURL when building a release.";
+
+"Progress" = "Progress";
+"Type distribution" = "Type distribution";
+
+"Прогресс" = "Progress";
+
+"←↑↓→ выбор · Return открыть · Space просмотр" = "←↑↓→ select · Return open · Space Quick Look";

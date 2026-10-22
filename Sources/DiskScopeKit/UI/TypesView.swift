@@ -176,6 +176,11 @@ private struct CategoryBar: View {
             }
         }
         .frame(height: 18)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Распределение по типам"))
+        .accessibilityValue(Text(stats.map {
+            "\($0.category.title) \(ByteFormat.percent($0.size, of: total))"
+        }.joined(separator: ", ")))
     }
 }
 

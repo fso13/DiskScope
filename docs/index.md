@@ -185,6 +185,13 @@ hide:
     App Intents для сканирования и бюджета плюс Quick Action
     «Scan with DiskScope» в Finder.
 
+-   **Доступность**
+
+    ---
+
+    VoiceOver-метки, клавиатурный фокус и навигация по карте стрелками,
+    `Return`, `Space` и `Esc`.
+
 -   **Медиа-поиск**
 
     ---
