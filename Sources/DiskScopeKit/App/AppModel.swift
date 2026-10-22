@@ -19,6 +19,7 @@ public final class AppModel: ObservableObject {
         case media
         case cleanup
         case disk
+        case duplicates
 
         public var id: String { rawValue }
 
@@ -30,6 +31,7 @@ public final class AppModel: ObservableObject {
             case .media: return "Медиа"
             case .cleanup: return "Очистка"
             case .disk: return "Диск"
+            case .duplicates: return "Дубликаты"
             }
         }
 
@@ -41,6 +43,7 @@ public final class AppModel: ObservableObject {
             case .media: return "photo.on.rectangle.angled"
             case .cleanup: return "sparkles"
             case .disk: return "internaldrive"
+            case .duplicates: return "doc.on.doc"
             }
         }
     }
@@ -141,13 +144,22 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var diskOverview: DiskOverview?
     @Published public private(set) var diskOverviewLoading = false
     @Published public private(set) var diskOverviewError: String?
-    @Published public private(set) var scanHistory: [ScanHistoryEntry] = []
+    @Published public internal(set) var scanHistory: [ScanHistoryEntry] = []
     @Published public var showHistory = false
+    @Published public internal(set) var duplicateGroups: [DuplicateGroup] = []
+    @Published public internal(set) var duplicateTotalWasted: Int64 = 0
+    @Published public internal(set) var duplicateCandidateCount = 0
+    @Published public internal(set) var duplicateScanning = false
+    @Published public internal(set) var duplicateProgress: Double = 0
+    @Published public var duplicateMinimumSize: Int64 = 1_000_000 {
+        didSet { resetDuplicates() }
+    }
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
+    var duplicateCancellation: ScanCancellation?
     private var activeScanID = UUID()
     private let scanQueue = DispatchQueue(label: "ru.diskscope.scan", qos: .userInitiated)
     private var toastWorkItem: DispatchWorkItem?
@@ -172,21 +184,6 @@ public final class AppModel: ObservableObject {
     }
 
     // MARK: - Derived state
-
-    public var isScanning: Bool { phase == .scanning }
-
-    public var volume: VolumeInfo? {
-        volumes.first(where: { $0.isInternal }) ?? volumes.first
-    }
-
-    public var internalVolume: VolumeInfo? {
-        volumes.first(where: { $0.path == "/" }) ?? volumes.first
-    }
-
-    public var currentNode: ScanNode? {
-        guard let tree, currentIndex >= 0, Int(currentIndex) < tree.count else { return nil }
-        return tree.node(currentIndex)
-    }
 
     public var currentName: String {
         guard let tree else { return "" }
@@ -300,6 +297,7 @@ public final class AppModel: ObservableObject {
         resetCleanup()
         resetCollection()
         resetSearch()
+        resetDuplicates()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -545,6 +543,7 @@ public final class AppModel: ObservableObject {
         let removed = scanTree.removingSubtrees(at: trashed.map(\.index))
         recordUndo(removal: removed, trashed: trashed)
         collection = collection.filter { !removed.tree.isDeleted($0) }
+        resetDuplicates()
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -622,6 +621,7 @@ public final class AppModel: ObservableObject {
         if !groups.isEmpty, let tree {
             let restored = tree.restoringSubtrees(groups: groups)
             self.tree = restored
+            resetDuplicates()
             addToCollection(collectionRoots)
             selection = []
             fileCount = restored.totalFiles
@@ -783,6 +783,7 @@ public final class AppModel: ObservableObject {
         let removed = scanTree.removingSubtrees(at: indices)
         recordUndo(removal: removed, trashed: trashed)
         collection = collection.filter { !removed.tree.isDeleted($0) }
+        resetDuplicates()
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -945,6 +946,7 @@ public final class AppModel: ObservableObject {
         resetCleanup()
         resetCollection()
         resetSearch()
+        resetDuplicates()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -964,6 +966,15 @@ public final class AppModel: ObservableObject {
         cleanupTreeID = tree.map { ObjectIdentifier($0) }
     }
 
+    /// Fills duplicate groups without hashing files; used by snapshots.
+    public func previewDuplicates(_ groups: [DuplicateGroup]) {
+        duplicateGroups = groups
+        duplicateTotalWasted = groups.reduce(0) { $0 + $1.wastedBytes }
+        duplicateCandidateCount = groups.reduce(0) { $0 + $1.files.count }
+        duplicateScanning = false
+        duplicateProgress = 1
+    }
+
     /// Fills disk overview state without scanning the real Trash; used by snapshots.
     public func previewDiskOverview(_ overview: DiskOverview) {
         diskOverview = overview
@@ -980,6 +991,7 @@ public final class AppModel: ObservableObject {
         resetCleanup()
         resetCollection()
         resetSearch()
+        resetDuplicates()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -992,6 +1004,7 @@ public final class AppModel: ObservableObject {
         resetCleanup()
         resetCollection()
         resetSearch()
+        resetDuplicates()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -1531,46 +1544,21 @@ extension AppModel {
 }
 
 extension AppModel {
-    // MARK: - Scan history
+    public var isScanning: Bool { phase == .scanning }
 
-    private var historyStore: ScanHistoryStore { ScanHistoryStore() }
-
-    private func recordScanHistory(_ tree: ScanTree) {
-        var entries = historyStore.load()
-        entries.insert(ScanHistoryEntry.make(tree: tree), at: 0)
-        if entries.count > 30 {
-            entries = Array(entries.prefix(30))
-        }
-        historyStore.save(entries)
-        scanHistory = entries
+    public var volume: VolumeInfo? {
+        volumes.first(where: { $0.isInternal }) ?? volumes.first
     }
 
-    public func reloadHistory() {
-        scanHistory = historyStore.load()
+    public var internalVolume: VolumeInfo? {
+        volumes.first(where: { $0.path == "/" }) ?? volumes.first
     }
 
-    public func deleteHistory(_ entry: ScanHistoryEntry) {
-        let entries = historyStore.load().filter { $0.id != entry.id }
-        historyStore.save(entries)
-        scanHistory = entries
+    public var currentNode: ScanNode? {
+        guard let tree, currentIndex >= 0, Int(currentIndex) < tree.count else { return nil }
+        return tree.node(currentIndex)
     }
 
-    public func clearHistory() {
-        historyStore.clear()
-        scanHistory = []
-    }
-
-    public func historyDiff(for entry: ScanHistoryEntry) -> HistoryDiff {
-        ScanHistoryDiff.make(entry: entry, tree: tree)
-    }
-
-    public func rescanHistory(_ entry: ScanHistoryEntry) {
-        showHistory = false
-        scan(path: entry.rootPath)
-    }
-}
-
-extension AppModel {
     public var homePath: String {
         FileManager.default.homeDirectoryForCurrentUser.path
     }

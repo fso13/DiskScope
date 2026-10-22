@@ -150,6 +150,13 @@ hide:
     Вторая ссылка на тот же inode не удваивает занятое место и помечается
     звеном цепи в таблицах, поиске и инспекторе.
 
+-   **Дубликаты файлов**
+
+    ---
+
+    `⌘9`: группы по размеру и SHA-256, порог, выбор копий и отправка в Корзину.
+    Жёсткие ссылки исключены, содержимое не покидает Mac.
+
 -   **Медиа-поиск**
 
     ---
@@ -227,6 +234,10 @@ Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте обр�
 <figure>
 <img src="assets/screenshots/17-disk-light.png" alt="Полная картина диска в DiskScope">
 <figcaption>Место, purgeable и снимки APFS</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/18-duplicates-light.png" alt="Поиск дубликатов в DiskScope">
+<figcaption>Дубликаты по содержимому</figcaption>
 </figure>
 </div>
 

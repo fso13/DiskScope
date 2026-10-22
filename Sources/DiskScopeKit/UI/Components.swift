@@ -169,6 +169,7 @@ struct SegmentedTabs: View {
         case .media: return "Поиск и перенос медиа (⌘4)"
         case .cleanup: return "Рекомендации по очистке (⌘5)"
         case .disk: return "Место, purgeable, снимки и Корзина (⌘7)"
+        case .duplicates: return "Одинаковые файлы по содержимому (⌘9)"
         }
     }
 }

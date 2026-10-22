@@ -253,6 +253,35 @@ final class SnapshotRenderer {
         model.tab = .disk
         render(model: model, named: "17-disk-light", dark: false)
         render(model: model, named: "17-disk-dark", dark: true)
+
+        let duplicateRows = Array(model.largestItems.prefix(5))
+        if duplicateRows.count >= 4 {
+            let documents = ["Annual Report.pdf", "Annual Report copy.pdf", "Annual Report (1).pdf"]
+            let videos = ["IMG_2048.mov", "IMG_2048 copy.mov"]
+            let firstFiles = zip(documents, duplicateRows.prefix(3)).map { name, row in
+                DuplicateFile(
+                    index: row.id,
+                    path: "/Users/you/Documents/\(name)",
+                    relativePath: "Documents/\(name)",
+                    modified: nil
+                )
+            }
+            let secondFiles = zip(videos, duplicateRows.dropFirst(3).prefix(2)).map { name, row in
+                DuplicateFile(
+                    index: row.id,
+                    path: "/Users/you/Movies/\(name)",
+                    relativePath: "Movies/\(name)",
+                    modified: nil
+                )
+            }
+            model.previewDuplicates([
+                DuplicateGroup(id: "preview-documents", size: 2_400_000_000, files: firstFiles),
+                DuplicateGroup(id: "preview-videos", size: 4_800_000_000, files: secondFiles),
+            ])
+        }
+        model.tab = .duplicates
+        render(model: model, named: "18-duplicates-light", dark: false)
+        render(model: model, named: "18-duplicates-dark", dark: true)
         model.tab = .map
 
         model.previewWelcome()

@@ -40,7 +40,7 @@ struct HeaderView: View {
     }
 
     private var showsFileChrome: Bool {
-        model.tab != .media && model.tab != .cleanup && model.tab != .disk
+        model.tab != .media && model.tab != .cleanup && model.tab != .disk && model.tab != .duplicates
     }
 
     // MARK: - Breadcrumbs
@@ -145,6 +145,15 @@ struct HeaderView: View {
                     .font(.system(size: 25, weight: .semibold))
                     .tracking(-0.4)
                 Text("Свободное место, purgeable, снимки APFS и Корзина")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        } else if model.tab == .duplicates {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Дубликаты")
+                    .font(.system(size: 25, weight: .semibold))
+                    .tracking(-0.4)
+                Text("Одинаковые файлы по содержимому — с учётом жёстких ссылок")
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
