@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import UniformTypeIdentifiers
 
 @MainActor
 public final class AppModel: ObservableObject {
@@ -1062,5 +1063,68 @@ extension AppModel {
 
     public func clearCleanupSelection() {
         cleanupSelection = []
+    }
+}
+
+extension AppModel {
+    public var canExportReport: Bool { tree != nil }
+
+    /// Shows a save panel and writes a CSV or HTML report of the current scan.
+    public func exportReport(format: ReportFormat = .csv, scope: ReportScope = .currentFolder) {
+        guard let tree else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Экспортировать отчёт"
+        panel.message = "CSV или HTML. Отчёт строится по текущему скану и видимым фильтрам."
+        panel.prompt = "Экспортировать"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.allowedContentTypes = [format == .csv ? .commaSeparatedText : .html]
+        panel.nameFieldStringValue = defaultReportFilename(format: format, scope: scope)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let options = ReportOptions(
+            format: format,
+            scope: scope,
+            search: searchText,
+            category: categoryFilter,
+            generatedAt: Date(),
+            appVersion: appVersion
+        )
+        let rootIndex = currentIndex
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let text: String
+                switch format {
+                case .csv:
+                    text = ReportExporter.makeCSV(tree: tree, rootIndex: rootIndex, options: options)
+                case .html:
+                    text = ReportExporter.makeHTML(tree: tree, rootIndex: rootIndex, options: options)
+                }
+                try ReportExporter.write(text, to: url)
+                DispatchQueue.main.async {
+                    self?.showToast("Отчёт сохранён: \(url.lastPathComponent)", symbol: "doc.text.fill")
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Не удалось сохранить отчёт: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
+    private func defaultReportFilename(format: ReportFormat, scope: ReportScope) -> String {
+        let raw = scope == .currentFolder ? currentName : rootDisplayName
+        var safe = raw
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if safe.isEmpty { safe = "DiskScope" }
+        return "DiskScope-\(safe).\(format.fileExtension)"
     }
 }
