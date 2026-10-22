@@ -20,6 +20,7 @@ public struct ContentView: View {
         .background(backgroundLayer)
         .background(WindowConfigurator())
         .frame(minWidth: 1180, minHeight: 760)
+        .folderDropTarget()
         .overlay(alignment: .bottom) { toastLayer }
         .alert("Переместить в Корзину?", isPresented: $model.showTrashConfirmation) {
             Button("Отмена", role: .cancel) {}

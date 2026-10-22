@@ -8,6 +8,13 @@ struct WelcomeView: View {
             VStack(spacing: 20) {
                 hero
                 quickCards
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.down.doc")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("Можно перетащить папку прямо в окно")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(.tertiary)
                 auxiliaryActions
                 volumeCard
                 steps
