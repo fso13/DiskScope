@@ -46,6 +46,10 @@ public struct ContentView: View {
             CollectionView()
                 .environmentObject(model)
         }
+        .sheet(isPresented: $model.showGlobalSearch) {
+            GlobalSearchView()
+                .environmentObject(model)
+        }
         .onAppear { model.refreshVolumes() }
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
     }

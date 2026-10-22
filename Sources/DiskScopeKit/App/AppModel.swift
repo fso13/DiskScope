@@ -104,6 +104,36 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
     @Published public var showCollectionTrashConfirmation = false
+    @Published public var showGlobalSearch = false {
+        didSet {
+            if showGlobalSearch {
+                ensureSearchIndex()
+                scheduleSearch()
+            }
+        }
+    }
+    @Published public var globalSearchText = "" {
+        didSet { scheduleSearch() }
+    }
+    @Published public var searchMinimumSize: Int64 = 0 {
+        didSet { scheduleSearch() }
+    }
+    @Published public var searchCategory: FileCategory? {
+        didSet { scheduleSearch() }
+    }
+    @Published public var searchKind: SearchKind = .any {
+        didSet { scheduleSearch() }
+    }
+    @Published public var searchDateRange: SearchDateRange = .any {
+        didSet { scheduleSearch() }
+    }
+    @Published public var searchSort: SearchSort = .size {
+        didSet { scheduleSearch() }
+    }
+    @Published public private(set) var searchHits: [SearchHit] = []
+    @Published public private(set) var searchTotal = 0
+    @Published public private(set) var searchIndexing = false
+    @Published public private(set) var searchReady = false
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
@@ -116,6 +146,10 @@ public final class AppModel: ObservableObject {
     private var fileOperationInFlight = false
     private var cleanupGeneration = 0
     private var cleanupTreeID: ObjectIdentifier?
+    private var searchIndex: ScanSearchIndex?
+    private var searchIndexGeneration = 0
+    private var searchQueryGeneration = 0
+    private var searchWorkItem: DispatchWorkItem?
 
     public init() {
         UserDefaults.standard.register(defaults: [
@@ -282,6 +316,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
+        resetSearch()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -809,29 +844,6 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    private func runningBundleIdentifiers() -> Set<String> {
-        Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-    }
-
-    private func topLevelSelection() -> [Int32] {
-        guard let tree else { return [] }
-        var result: [Int32] = []
-        for index in selection.sorted() {
-            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
-            var ancestor = tree.node(index).parent
-            var hasSelectedAncestor = false
-            while ancestor >= 0 {
-                if selection.contains(ancestor) {
-                    hasSelectedAncestor = true
-                    break
-                }
-                ancestor = tree.node(ancestor).parent
-            }
-            if !hasSelectedAncestor { result.append(index) }
-        }
-        return result
-    }
-
     // MARK: - Table rows
 
     public func rebuildCurrentRows() {
@@ -951,6 +963,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
+        resetSearch()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -978,6 +991,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
+        resetSearch()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -989,6 +1003,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
+        resetSearch()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -1249,5 +1264,156 @@ extension AppModel {
         collection = []
         showCollection = false
         showCollectionTrashConfirmation = false
+    }
+}
+
+extension AppModel {
+    // MARK: - Global search
+
+    /// Builds the name index on demand. Results are applied only for the current tree.
+    public func ensureSearchIndex() {
+        guard let tree else {
+            resetSearch()
+            return
+        }
+        if let index = searchIndex, index.treeIdentifier == ObjectIdentifier(tree) {
+            searchReady = true
+            return
+        }
+        guard !searchIndexing else { return }
+
+        searchIndexGeneration += 1
+        let generation = searchIndexGeneration
+        searchIndexing = true
+        searchReady = false
+        let treeToIndex = tree
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let index = ScanSearchIndex(tree: treeToIndex)
+            DispatchQueue.main.async {
+                guard let self,
+                      self.searchIndexGeneration == generation,
+                      self.tree === treeToIndex else { return }
+                self.searchIndex = index
+                self.searchIndexing = false
+                self.searchReady = true
+                self.runSearch()
+            }
+        }
+    }
+
+    func scheduleSearch() {
+        searchWorkItem?.cancel()
+        guard showGlobalSearch else { return }
+        let item = DispatchWorkItem { [weak self] in
+            self?.runSearch()
+        }
+        searchWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
+    }
+
+    func runSearch() {
+        guard showGlobalSearch, let tree else { return }
+        guard let index = searchIndex, index.treeIdentifier == ObjectIdentifier(tree) else {
+            ensureSearchIndex()
+            return
+        }
+
+        let query = SearchQuery(
+            text: globalSearchText,
+            minimumSize: searchMinimumSize,
+            category: searchCategory,
+            kind: searchKind,
+            dateRange: searchDateRange,
+            sort: searchSort,
+            limit: 500
+        )
+        searchQueryGeneration += 1
+        let generation = searchQueryGeneration
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let results = index.search(query)
+            DispatchQueue.main.async {
+                guard let self,
+                      self.searchQueryGeneration == generation,
+                      self.showGlobalSearch else { return }
+                self.searchHits = results.hits
+                self.searchTotal = results.total
+            }
+        }
+    }
+
+    func resetSearch() {
+        searchIndexGeneration += 1
+        searchQueryGeneration += 1
+        searchWorkItem?.cancel()
+        searchIndex = nil
+        searchHits = []
+        searchTotal = 0
+        searchIndexing = false
+        searchReady = false
+        showGlobalSearch = false
+        globalSearchText = ""
+    }
+
+    public func revealSearchHit(_ hit: SearchHit) {
+        showGlobalSearch = false
+        reveal(indices: [hit.index])
+    }
+
+    public func navigateToSearchHit(_ hit: SearchHit) {
+        guard let tree, hit.index > 0, Int(hit.index) < tree.count else { return }
+        showGlobalSearch = false
+        let node = tree.node(hit.index)
+        if node.nodeKind.isContainer {
+            navigate(to: hit.index)
+        } else {
+            if node.parent >= 0 {
+                navigate(to: node.parent)
+            }
+            reveal(indices: [hit.index])
+        }
+    }
+
+    public func addSearchHitToCollection(_ hit: SearchHit) {
+        addToCollection([hit.index])
+        showToast("В коллекции: \(collectionSummary)", symbol: "tray.full")
+    }
+
+    public func requestTrashSearchHit(_ hit: SearchHit) {
+        guard let tree, hit.index > 0, Int(hit.index) < tree.count, !tree.isDeleted(hit.index) else {
+            return
+        }
+        showGlobalSearch = false
+        selection = [hit.index]
+        // Let the search sheet finish dismissing before showing the confirmation.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            self?.requestTrashSelection()
+        }
+    }
+}
+
+extension AppModel {
+    private func runningBundleIdentifiers() -> Set<String> {
+        Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+    }
+
+    private func topLevelSelection() -> [Int32] {
+        guard let tree else { return [] }
+        var result: [Int32] = []
+        for index in selection.sorted() {
+            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
+            var ancestor = tree.node(index).parent
+            var hasSelectedAncestor = false
+            while ancestor >= 0 {
+                if selection.contains(ancestor) {
+                    hasSelectedAncestor = true
+                    break
+                }
+                ancestor = tree.node(ancestor).parent
+            }
+            if !hasSelectedAncestor { result.append(index) }
+        }
+        return result
     }
 }

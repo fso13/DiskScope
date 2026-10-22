@@ -443,6 +443,17 @@ struct CommandPaletteView: View {
             }
             items.append(
                 PaletteCommand(
+                    id: "search",
+                    title: "Найти по скану…",
+                    subtitle: "Поиск",
+                    symbol: "magnifyingglass",
+                    shortcut: "⌘F"
+                ) {
+                    model.showGlobalSearch = true
+                }
+            )
+            items.append(
+                PaletteCommand(
                     id: "export-csv",
                     title: "Экспортировать отчёт: CSV",
                     subtitle: "Файл",
