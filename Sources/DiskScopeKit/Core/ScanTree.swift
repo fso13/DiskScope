@@ -75,8 +75,14 @@ public struct ScanNode: Sendable {
     }
 
     public var nodeKind: NodeKind {
-        get { NodeKind(rawValue: kind) ?? .file }
-        set { kind = newValue.rawValue }
+        get { NodeKind(rawValue: kind & 0x7F) ?? .file }
+        set { kind = (kind & 0x80) | newValue.rawValue }
+    }
+
+    /// True for a hard link whose blocks were already counted under another path.
+    public var isHardLink: Bool {
+        get { kind & 0x80 != 0 }
+        set { kind = (kind & 0x7F) | (newValue ? 0x80 : 0) }
     }
 
     public var category: FileCategory {
@@ -96,6 +102,8 @@ public struct ScanReport: Sendable {
     public var skippedMounts: Int = 0
     public var sampleSkippedPaths: [String] = []
     public var usedBulkScanner: Bool = true
+    /// Bytes that were not counted again because another hard link owns them.
+    public var hardLinkBytes: Int64 = 0
 
     public init(
         duration: TimeInterval = 0,
@@ -104,7 +112,8 @@ public struct ScanReport: Sendable {
         skippedItems: Int = 0,
         skippedMounts: Int = 0,
         sampleSkippedPaths: [String] = [],
-        usedBulkScanner: Bool = true
+        usedBulkScanner: Bool = true,
+        hardLinkBytes: Int64 = 0
     ) {
         self.duration = duration
         self.entriesRead = entriesRead
@@ -113,6 +122,7 @@ public struct ScanReport: Sendable {
         self.skippedMounts = skippedMounts
         self.sampleSkippedPaths = sampleSkippedPaths
         self.usedBulkScanner = usedBulkScanner
+        self.hardLinkBytes = hardLinkBytes
     }
 }
 

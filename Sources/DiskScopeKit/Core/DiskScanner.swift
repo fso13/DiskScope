@@ -89,6 +89,7 @@ private let attrCMNName: UInt32 = 0x0000_0001
 private let attrCMNObjType: UInt32 = 0x0000_0008
 private let attrCMNCRTime: UInt32 = 0x0000_0200
 private let attrCMNModTime: UInt32 = 0x0000_0400
+private let attrCMNFileID: UInt32 = 0x0200_0000
 private let attrDirMountStatus: UInt32 = 0x0000_0004
 private let attrDirAllocSize: UInt32 = 0x0000_0008
 private let attrFileAllocSize: UInt32 = 0x0000_0004
@@ -174,7 +175,7 @@ public final class DiskScanner {
         var attributes = attrlist()
         attributes.bitmapcount = attrBitMapCount
         attributes.commonattr = attrCMNReturnedAttrs | attrCMNName | attrCMNObjType
-            | attrCMNCRTime | attrCMNModTime
+            | attrCMNCRTime | attrCMNModTime | attrCMNFileID
         attributes.dirattr = attrDirMountStatus | attrDirAllocSize
         attributes.fileattr = attrFileAllocSize
         return attributes
@@ -212,13 +213,15 @@ public final class DiskScanner {
             _ size: Int64,
             _ mountStatus: UInt32,
             _ createdDays: Int32,
-            _ modifiedDays: Int32
+            _ modifiedDays: Int32,
+            _ fileID: UInt64
         ) {
             if mountStatus & (mntStatusMountPoint | mntStatusTrigger) != 0 {
                 session.skippedMounts += 1
                 return
             }
 
+            var countedSize = size
             switch kind {
             case .directory:
                 let isPackage = session.isPackage(name, length: nameLength)
@@ -236,6 +239,11 @@ public final class DiskScanner {
                 subdirectories.append(Subdirectory(name: name, length: nameLength, node: index))
                 session.directories += 1
             case .file:
+                let duplicate = fileID != 0 && !session.registerFileID(fileID)
+                if duplicate {
+                    countedSize = 0
+                    session.hardLinkBytes += size
+                }
                 if size >= session.minimumFileSize {
                     let category = FileCategory.forExtension(session.extensionString(name, length: nameLength))
                     _ = session.builder.appendNode(
@@ -243,14 +251,15 @@ public final class DiskScanner {
                         name: name,
                         nameLength: nameLength,
                         kind: .file,
-                        size: size,
+                        size: countedSize,
                         itemCount: 1,
                         category: category,
                         createdDays: createdDays,
-                        modifiedDays: modifiedDays
+                        modifiedDays: modifiedDays,
+                        isHardLink: duplicate
                     )
                 } else {
-                    aggregateBytes += size
+                    aggregateBytes += countedSize
                     aggregateCount += 1
                     aggregateCreatedDays = ScanNode.earlierDay(aggregateCreatedDays, createdDays)
                     aggregateModifiedDays = ScanNode.laterDay(aggregateModifiedDays, modifiedDays)
@@ -273,7 +282,7 @@ public final class DiskScanner {
                 break
             }
             session.entries += 1
-            session.bytes += size
+            session.bytes += countedSize
             session.tick()
         }
 
@@ -322,7 +331,7 @@ public final class DiskScanner {
     private func readBulk(
         fd: Int32,
         session: ScanSession,
-        handler: (UnsafePointer<UInt8>, Int, NodeKind, Int64, UInt32, Int32, Int32) -> Void
+        handler: (UnsafePointer<UInt8>, Int, NodeKind, Int64, UInt32, Int32, Int32, UInt64) -> Void
     ) throws {
         var attributes = makeAttributeList()
         let bufferSize = 256 * 1024
@@ -378,6 +387,14 @@ public final class DiskScanner {
                             cursor += 16
                         }
 
+                        var fileID: UInt64 = 0
+                        if returnedCommon & attrCMNFileID != 0 {
+                            if cursor + 8 <= entryLength {
+                                fileID = base.loadUnaligned(fromByteOffset: cursor, as: UInt64.self)
+                            }
+                            cursor += 8
+                        }
+
                         var size: Int64 = 0
                         var mountStatus: UInt32 = 0
                         if objectType == vTypeDirectory {
@@ -390,7 +407,7 @@ public final class DiskScanner {
                             }
                             handler(
                                 namePointer, effectiveLength, .directory, size, mountStatus,
-                                createdDays, modifiedDays
+                                createdDays, modifiedDays, 0
                             )
                         } else if objectType == vTypeRegular {
                             if returnedFile & attrFileAllocSize != 0 {
@@ -398,12 +415,12 @@ public final class DiskScanner {
                             }
                             handler(
                                 namePointer, effectiveLength, .file, size, 0,
-                                createdDays, modifiedDays
+                                createdDays, modifiedDays, fileID
                             )
                         } else if objectType == vTypeSymlink {
                             handler(
                                 namePointer, effectiveLength, .symlink, 0, 0,
-                                createdDays, modifiedDays
+                                createdDays, modifiedDays, 0
                             )
                         }
                     }
@@ -419,7 +436,7 @@ public final class DiskScanner {
     private func readReaddir(
         fd: Int32,
         session: ScanSession,
-        handler: (UnsafePointer<UInt8>, Int, NodeKind, Int64, UInt32, Int32, Int32) -> Void
+        handler: (UnsafePointer<UInt8>, Int, NodeKind, Int64, UInt32, Int32, Int32, UInt64) -> Void
     ) throws {
         guard let directory = fdopendir(dup(fd)) else {
             session.recordSkipped(path: session.currentPath(), errno: errno)
@@ -453,12 +470,15 @@ public final class DiskScanner {
                     if type == S_IFDIR {
                         handler(
                             namePointer, length, .directory, size, isMount ? mntStatusMountPoint : 0,
-                            createdDays, modifiedDays
+                            createdDays, modifiedDays, 0
                         )
                     } else if type == S_IFREG {
-                        handler(namePointer, length, .file, size, 0, createdDays, modifiedDays)
+                        handler(
+                            namePointer, length, .file, size, 0,
+                            createdDays, modifiedDays, UInt64(info.st_ino)
+                        )
                     } else if type == S_IFLNK {
-                        handler(namePointer, length, .symlink, size, 0, createdDays, modifiedDays)
+                        handler(namePointer, length, .symlink, size, 0, createdDays, modifiedDays, 0)
                     }
                 }
             }
@@ -504,7 +524,10 @@ private final class ScanSession {
     var skippedMounts = 0
     var sampleSkippedPaths: [String] = []
     var usedBulkScanner = true
+    var hardLinkBytes: Int64 = 0
     var components: [String] = []
+
+    private var seenFileIDs: Set<UInt64> = []
 
     private var startTime = Date()
     private var lastProgressTime = Date.distantPast
@@ -533,6 +556,10 @@ private final class ScanSession {
     }
 
     var isCancelled: Bool { cancellation?.isCancelled ?? false }
+
+    func registerFileID(_ id: UInt64) -> Bool {
+        seenFileIDs.insert(id).inserted
+    }
 
     func tick() {
         ticksSinceProgress += 1
@@ -607,7 +634,8 @@ private final class ScanSession {
             skippedItems: skippedItems,
             skippedMounts: skippedMounts,
             sampleSkippedPaths: sampleSkippedPaths,
-            usedBulkScanner: usedBulkScanner
+            usedBulkScanner: usedBulkScanner,
+            hardLinkBytes: hardLinkBytes
         )
     }
 }
@@ -648,7 +676,8 @@ final class TreeBuilder {
         itemCount: Int32,
         category: FileCategory,
         createdDays: Int32,
-        modifiedDays: Int32
+        modifiedDays: Int32,
+        isHardLink: Bool = false
     ) -> Int32 {
         let index = Int32(nodes.count)
         var node = ScanNode()
@@ -656,6 +685,7 @@ final class TreeBuilder {
         node.nameOffset = Int32(names.count)
         node.nameLength = Int32(nameLength)
         node.kind = kind.rawValue
+        node.isHardLink = isHardLink
         node.size = size
         node.itemCount = itemCount
         node.dominant = UInt8(category.rawValue)

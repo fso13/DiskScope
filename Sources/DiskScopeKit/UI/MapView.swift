@@ -111,10 +111,18 @@ struct ChildrenTable: View {
         HStack(spacing: 8) {
             NodeIcon(category: row.category, isContainer: row.isContainer, size: 21)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.name)
-                    .font(.system(size: 11.5, weight: row.isContainer ? .medium : .regular))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack(spacing: 4) {
+                    Text(row.name)
+                        .font(.system(size: 11.5, weight: row.isContainer ? .medium : .regular))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if row.isHardLink {
+                        Image(systemName: "link")
+                            .font(.system(size: 7.5, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .help("Жёсткая ссылка: размер уже учтён в другой записи")
+                    }
+                }
                 if row.isAggregate {
                     Text("меньше 64 КБ · \(Plural.files(row.itemCount))")
                         .font(.system(size: 8.5))

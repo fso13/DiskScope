@@ -90,6 +90,7 @@ public struct SearchHit: Identifiable, Sendable {
     public let relativePath: String
     public let size: Int64
     public let category: FileCategory
+    public let isHardLink: Bool
     public let kind: NodeKind
     public let modified: Date?
     public let itemCount: Int
@@ -243,6 +244,7 @@ public final class ScanSearchIndex: @unchecked Sendable {
             relativePath: tree.relativePath(of: index),
             size: node.size,
             category: tree.category(of: index),
+            isHardLink: node.isHardLink,
             kind: node.nodeKind,
             modified: tree.modified(of: index),
             itemCount: Int(node.itemCount)

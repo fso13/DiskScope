@@ -68,6 +68,12 @@ struct LargestFilesView: View {
                         .font(.system(size: 11.5, weight: row.isContainer ? .medium : .regular))
                         .lineLimit(1)
                         .truncationMode(.middle)
+                    if row.isHardLink {
+                        Image(systemName: "link")
+                            .font(.system(size: 7.5, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .help("Жёсткая ссылка: размер уже учтён в другой записи")
+                    }
                     Spacer(minLength: 0)
                 }
                 .padding(.vertical, 2)

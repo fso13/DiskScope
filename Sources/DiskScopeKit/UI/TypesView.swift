@@ -264,10 +264,18 @@ private struct TopItemRow: View {
             HStack(spacing: 9) {
                 NodeIcon(category: row.category, isContainer: row.isContainer, size: 22)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(row.name)
-                        .font(.system(size: 11.5, weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    HStack(spacing: 4) {
+                        Text(row.name)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if row.isHardLink {
+                            Image(systemName: "link")
+                                .font(.system(size: 7.5, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                                .help("Жёсткая ссылка: размер уже учтён в другой записи")
+                        }
+                    }
                     Text(folderLabel)
                         .font(.system(size: 9))
                         .foregroundStyle(.tertiary)
