@@ -61,11 +61,13 @@ swift test
 
 ```bash
 .build/debug/diskscope-cli /Applications
+.build/debug/diskscope-cli --json --budget 50GB --output size.json ~/Library
 .build/debug/diskscope-cli --min-size 0 --limit 20 ~/Library
 .build/debug/DiskScopeSnapshots snapshots /Applications
 ```
 
-`diskscope-cli` печатает итоги скана и крупнейшие объекты, `DiskScopeSnapshots`
+`diskscope-cli` печатает итоги скана и крупнейшие объекты, поддерживает
+`--json` и `--budget` для CI (см. [CLI](cli.md)). `DiskScopeSnapshots`
 рендерит реальные SwiftUI-экраны в PNG без разрешения на запись экрана.
 
 ## Документация

@@ -58,6 +58,7 @@ nav:
   - Обзор: index.md
   - Скачать: https://github.com/fso13/DiskScope/releases/latest
   - Как пользоваться: usage.md
+  - CLI: cli.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
