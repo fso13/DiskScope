@@ -54,6 +54,10 @@ public struct ContentView: View {
             GlobalSearchView()
                 .environmentObject(model)
         }
+        .sheet(isPresented: $model.showHistory) {
+            HistoryView()
+                .environmentObject(model)
+        }
         .onAppear { model.refreshVolumes() }
         .quickLookPreview($model.quickLookURL)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
