@@ -430,6 +430,28 @@ struct CommandPaletteView: View {
             )
             items.append(
                 PaletteCommand(
+                    id: "export-csv",
+                    title: "Экспортировать отчёт: CSV",
+                    subtitle: "Файл",
+                    symbol: "square.and.arrow.up",
+                    shortcut: "⇧⌘E"
+                ) {
+                    model.exportReport(format: .csv, scope: .currentFolder)
+                }
+            )
+            items.append(
+                PaletteCommand(
+                    id: "export-html",
+                    title: "Экспортировать отчёт: HTML",
+                    subtitle: "Файл",
+                    symbol: "square.and.arrow.up",
+                    shortcut: nil
+                ) {
+                    model.exportReport(format: .html, scope: .currentFolder)
+                }
+            )
+            items.append(
+                PaletteCommand(
                     id: "reveal",
                     title: "Показать в Finder",
                     subtitle: "Файлы",

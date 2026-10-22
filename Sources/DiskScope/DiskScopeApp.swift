@@ -31,6 +31,26 @@ struct DiskScopeApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
 
+            CommandGroup(after: .saveItem) {
+                Menu("Экспортировать отчёт") {
+                    Button("CSV — текущая папка") {
+                        model.exportReport(format: .csv, scope: .currentFolder)
+                    }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    Button("HTML — текущая папка") {
+                        model.exportReport(format: .html, scope: .currentFolder)
+                    }
+                    Divider()
+                    Button("CSV — весь скан") {
+                        model.exportReport(format: .csv, scope: .wholeScan)
+                    }
+                    Button("HTML — весь скан") {
+                        model.exportReport(format: .html, scope: .wholeScan)
+                    }
+                }
+                .disabled(model.tree == nil)
+            }
+
             CommandMenu("Диск") {
                 Button("Сканировать домашнюю папку") { model.scanHome() }
                     .keyboardShortcut("h", modifiers: [.command, .shift])
