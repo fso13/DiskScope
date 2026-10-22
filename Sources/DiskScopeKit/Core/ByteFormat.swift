@@ -2,11 +2,13 @@ import Foundation
 
 /// Formatting helpers for byte sizes and percentages.
 public enum ByteFormat {
-    private static let units = ["Б", "КБ", "МБ", "ГБ", "ТБ", "ПБ"]
+    private static var units: [String] {
+        L10n.isEnglish ? ["B", "KB", "MB", "GB", "TB", "PB"] : ["Б", "КБ", "МБ", "ГБ", "ТБ", "ПБ"]
+    }
 
     /// Human readable size using decimal units, matching Finder's "on disk" numbers.
     public static func string(_ bytes: Int64) -> String {
-        guard bytes > 0 else { return "0 Б" }
+        guard bytes > 0 else { return L10n.isEnglish ? "0 B" : "0 Б" }
         var value = Double(bytes)
         var unit = 0
         while value >= 1000, unit < units.count - 1 {
@@ -55,6 +57,11 @@ public enum ByteFormat {
     }
 
     public static func duration(_ seconds: TimeInterval) -> String {
+        if L10n.isEnglish {
+            if seconds < 1 { return "\(Int((seconds * 1000).rounded())) ms" }
+            if seconds < 60 { return "\(seconds.formatted(.number.precision(.fractionLength(1)))) s" }
+            return "\(Int(seconds) / 60) min \(Int(seconds) % 60) s"
+        }
         if seconds < 1 { return "\(Int((seconds * 1000).rounded())) мс" }
         if seconds < 60 { return "\(seconds.formatted(.number.precision(.fractionLength(1)))) с" }
         let minutes = Int(seconds) / 60

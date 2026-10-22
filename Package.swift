@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "DiskScope",
+    defaultLocalization: "ru",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "DiskScope", targets: ["DiskScope"]),
@@ -11,6 +12,7 @@ let package = Package(
     targets: [
         .target(
             name: "DiskScopeKit",
+            resources: [.process("Resources")],
             linkerSettings: [.linkedFramework("Photos")]
         ),
         .executableTarget(name: "DiskScope", dependencies: ["DiskScopeKit"]),

@@ -84,7 +84,7 @@ struct GlobalSearchView: View {
 
             Picker("Тип", selection: $model.searchKind) {
                 ForEach(SearchKind.allCases) { kind in
-                    Text(kind.title).tag(kind)
+                    Text(LocalizedStringKey(kind.title)).tag(kind)
                 }
             }
             .labelsHidden()
@@ -114,7 +114,7 @@ struct GlobalSearchView: View {
 
             Picker("Дата", selection: $model.searchDateRange) {
                 ForEach(SearchDateRange.allCases) { range in
-                    Text(range.title).tag(range)
+                    Text(LocalizedStringKey(range.title)).tag(range)
                 }
             }
             .labelsHidden()
@@ -125,7 +125,7 @@ struct GlobalSearchView: View {
 
             Picker("Сортировка", selection: $model.searchSort) {
                 ForEach(SearchSort.allCases) { sort in
-                    Text(sort.title).tag(sort)
+                    Text(LocalizedStringKey(sort.title)).tag(sort)
                 }
             }
             .labelsHidden()

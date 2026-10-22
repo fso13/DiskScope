@@ -104,7 +104,7 @@ struct DiskOverviewView: View {
         HStack(spacing: 5) {
             Circle().fill(color).frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.secondary)
                 Text(ByteFormat.string(value))
@@ -119,7 +119,9 @@ struct DiskOverviewView: View {
             metricCard(
                 title: "Свободно",
                 value: overview.map { ByteFormat.string($0.freeBytes) } ?? "—",
-                detail: overview.map { "из \(ByteFormat.string($0.totalBytes))" } ?? "",
+                detail: overview.map { L10n.isEnglish
+                    ? "of \(ByteFormat.string($0.totalBytes))"
+                    : "из \(ByteFormat.string($0.totalBytes))" } ?? "",
                 symbol: "internaldrive",
                 tint: .green
             )
@@ -159,7 +161,7 @@ struct DiskOverviewView: View {
                 Image(systemName: symbol)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(tint)
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 9.5, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -292,11 +294,12 @@ struct DiskOverviewView: View {
             Image(systemName: "info.circle")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.tertiary)
-            Text(
-                "Purgeable — оценка места, которое macOS может освободить без удаления ваших файлов. "
+            Text(L10n.isEnglish
+                ? "Purgeable is an estimate of space macOS can reclaim without deleting your files. "
+                    + "APFS snapshots are not files and can pin blocks; DiskScope does not delete them."
+                : "Purgeable — оценка места, которое macOS может освободить без удаления ваших файлов. "
                     + "Снимки APFS не показываются как файлы и могут удерживать блоки; "
-                    + "DiskScope их не удаляет."
-            )
+                    + "DiskScope их не удаляет.")
             .font(.system(size: 9.5))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)

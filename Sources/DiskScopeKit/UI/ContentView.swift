@@ -5,6 +5,7 @@ import SwiftUI
 public struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @AppStorage(AppSettingsKeys.appearance) private var appearance = AppAppearance.system.rawValue
+    @AppStorage(AppSettingsKeys.language) private var language = AppLanguage.system.rawValue
 
     public init() {}
 
@@ -61,6 +62,7 @@ public struct ContentView: View {
         .onAppear { model.refreshVolumes() }
         .quickLookPreview($model.quickLookURL)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
+        .environment(\.locale, AppLanguage(rawValue: language)?.locale ?? Locale.current)
     }
 
     private var trashMessage: String {
@@ -171,11 +173,15 @@ struct StatusBar: View {
                 .fill(Theme.success)
                 .frame(width: 5, height: 5)
             if let tree = model.tree {
-                Text("\(model.rootDisplayName) · \(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles))")
+                Text("\(L10n.t(model.rootDisplayName)) · \(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles))")
                 Text("·")
-                Text("скан за \(ByteFormat.duration(tree.report.duration))")
+                Text(L10n.isEnglish
+                    ? "scanned in \(ByteFormat.duration(tree.report.duration))"
+                    : "скан за \(ByteFormat.duration(tree.report.duration))")
                 if tree.report.skippedMounts > 0 {
-                    Text("· \(tree.report.skippedMounts) томов пропущено")
+                    Text(L10n.isEnglish
+                        ? "· \(tree.report.skippedMounts) volumes skipped"
+                        : "· \(tree.report.skippedMounts) томов пропущено")
                 }
             } else {
                 Text("Готово")
@@ -185,13 +191,15 @@ struct StatusBar: View {
                 Button {
                     model.showCollection = true
                 } label: {
-                    Text("Коллекция: \(model.collectionSummary)")
+                    Text(L10n.isEnglish
+                        ? "Collection: \(model.collectionSummary)"
+                        : "Коллекция: \(model.collectionSummary)")
                 }
                 .buttonStyle(.plain)
                 .help("Открыть коллекцию (⌘6)")
             }
             Spacer()
-            Text("Свободно \(model.freeSpaceText)")
+            Text(L10n.isEnglish ? "Free \(model.freeSpaceText)" : "Свободно \(model.freeSpaceText)")
         }
         .font(.system(size: 10, weight: .medium))
         .foregroundStyle(.secondary)

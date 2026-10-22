@@ -85,7 +85,7 @@ struct HeaderView: View {
                     Image(systemName: rootSymbol)
                         .font(.system(size: 8.5, weight: .semibold))
                 }
-                Text(crumbTitle(index))
+                Text(LocalizedStringKey(crumbTitle(index)))
                     .lineLimit(1)
             }
             .font(.system(size: 10.5, weight: isLast ? .semibold : .medium))
@@ -169,7 +169,7 @@ struct HeaderView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(model.currentName)
+                Text(LocalizedStringKey(model.currentName))
                     .font(.system(size: 25, weight: .semibold))
                     .tracking(-0.4)
                     .lineLimit(1)

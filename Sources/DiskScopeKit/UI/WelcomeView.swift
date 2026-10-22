@@ -59,7 +59,7 @@ struct WelcomeView: View {
             Image(systemName: symbol)
                 .font(.system(size: 8, weight: .semibold))
                 .foregroundStyle(Theme.accent)
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 9.5, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -129,6 +129,13 @@ struct WelcomeView: View {
         }
     }
 
+    private func volumeSummary(_ volume: VolumeInfo) -> String {
+        if L10n.isEnglish {
+            return "Used \(ByteFormat.string(volume.usedBytes)) · Free \(ByteFormat.string(volume.freeBytes)) of \(ByteFormat.string(volume.totalBytes))"
+        }
+        return "Занято \(ByteFormat.string(volume.usedBytes)) · Свободно \(ByteFormat.string(volume.freeBytes)) из \(ByteFormat.string(volume.totalBytes))"
+    }
+
     private func abbreviate(_ path: String) -> String {
         let home = model.homePath
         if path.hasPrefix(home) {
@@ -162,13 +169,7 @@ struct WelcomeView: View {
 
                 if let volume = model.internalVolume {
                     ProgressBar(fraction: volume.usedFraction, height: 7)
-                    HStack(spacing: 5) {
-                        Text("Занято \(ByteFormat.string(volume.usedBytes))")
-                        Text("·")
-                        Text("Свободно \(ByteFormat.string(volume.freeBytes))")
-                        Text("из \(ByteFormat.string(volume.totalBytes))")
-                            .foregroundStyle(.tertiary)
-                    }
+                    Text(volumeSummary(volume))
                     .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
                 }
@@ -181,7 +182,7 @@ struct WelcomeView: View {
                     Text(ByteFormat.percent(volume.usedBytes, of: volume.totalBytes))
                         .font(AppFont.number(21))
                         .monospacedDigit()
-                    Text("занято")
+                    Text(L10n.t("занято"))
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                 }
@@ -224,9 +225,9 @@ struct WelcomeView: View {
                 .frame(width: 21, height: 21)
                 .background(Theme.accent.opacity(0.12), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 11.5, weight: .semibold))
-                Text(text)
+                Text(LocalizedStringKey(text))
                     .font(.system(size: 9.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -303,10 +304,10 @@ private struct QuickStartCard: View {
                         .opacity(hovering ? 1 : 0.45)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.primary)
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

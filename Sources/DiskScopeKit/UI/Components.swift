@@ -135,7 +135,7 @@ struct SegmentedTabs: View {
                     HStack(spacing: 5) {
                         Image(systemName: tab.symbol)
                             .font(.system(size: 10, weight: .semibold))
-                        Text(tab.title)
+                        Text(LocalizedStringKey(tab.title))
                             .font(.system(size: 11.5, weight: .medium))
                     }
                     .foregroundStyle(selection == tab ? Color.primary : Color.secondary)
@@ -185,7 +185,7 @@ struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.secondary)
-            TextField(placeholder, text: $text)
+            TextField(LocalizedStringKey(placeholder), text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
             if !text.isEmpty {
@@ -249,7 +249,7 @@ struct AccentButton: View {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
                     .font(.system(size: 11, weight: .bold))
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 12, weight: .semibold))
             }
             .foregroundStyle(.white)
@@ -286,7 +286,7 @@ struct GhostButton: View {
                 if let symbol {
                     Image(systemName: symbol).font(.system(size: 10, weight: .semibold))
                 }
-                Text(title).font(.system(size: 11.5, weight: .medium))
+                Text(LocalizedStringKey(title)).font(.system(size: 11.5, weight: .medium))
             }
             .foregroundStyle(tint)
             .padding(.horizontal, 10)

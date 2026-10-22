@@ -1,0 +1,3 @@
+"NSPhotoLibraryUsageDescription" = "DiskScope imports selected images into your Photos library.";
+"NSPhotoLibraryAddUsageDescription" = "DiskScope adds selected images to your Photos library.";
+"NSHumanReadableCopyright" = "© 2026 DiskScope. Local disk analysis.";
