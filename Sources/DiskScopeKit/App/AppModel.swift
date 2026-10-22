@@ -18,6 +18,7 @@ public final class AppModel: ObservableObject {
         case types
         case media
         case cleanup
+        case disk
 
         public var id: String { rawValue }
 
@@ -28,6 +29,7 @@ public final class AppModel: ObservableObject {
             case .types: return "Типы файлов"
             case .media: return "Медиа"
             case .cleanup: return "Очистка"
+            case .disk: return "Диск"
             }
         }
 
@@ -38,6 +40,7 @@ public final class AppModel: ObservableObject {
             case .types: return "chart.bar.xaxis"
             case .media: return "photo.on.rectangle.angled"
             case .cleanup: return "sparkles"
+            case .disk: return "internaldrive"
             }
         }
     }
@@ -134,6 +137,9 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var searchTotal = 0
     @Published public private(set) var searchIndexing = false
     @Published public private(set) var searchReady = false
+    @Published public private(set) var diskOverview: DiskOverview?
+    @Published public private(set) var diskOverviewLoading = false
+    @Published public private(set) var diskOverviewError: String?
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
@@ -265,11 +271,6 @@ public final class AppModel: ObservableObject {
 
     public var hasPermissionIssues: Bool {
         (tree?.report.skippedItems ?? 0) > 0
-    }
-
-    public var freeSpaceText: String {
-        guard let volume = internalVolume else { return "—" }
-        return ByteFormat.string(volume.freeBytes)
     }
 
     public var filteredLargestRows: [ItemRow] {
@@ -431,10 +432,6 @@ public final class AppModel: ObservableObject {
                 self.categoryStats = stats
             }
         }
-    }
-
-    public func refreshVolumes() {
-        volumes = VolumeInfo.loadAll()
     }
 
     // MARK: - Navigation
@@ -985,6 +982,13 @@ public final class AppModel: ObservableObject {
         cleanupTreeID = tree.map { ObjectIdentifier($0) }
     }
 
+    /// Fills disk overview state without scanning the real Trash; used by snapshots.
+    public func previewDiskOverview(_ overview: DiskOverview) {
+        diskOverview = overview
+        diskOverviewLoading = false
+        diskOverviewError = nil
+    }
+
     public func previewScanning(path: String, progress: ScanProgress) {
         tree = nil
         phase = .scanning
@@ -1493,5 +1497,53 @@ extension AppModel {
                 self?.errorMessage = "Не удалось открыть терминал: \(error.localizedDescription)"
             }
         }
+    }
+}
+
+extension AppModel {
+    // MARK: - Disk overview
+
+    public func refreshDiskOverview(force: Bool = false) {
+        guard !diskOverviewLoading else { return }
+        if !force, let diskOverview, Date().timeIntervalSince(diskOverview.updatedAt) < 60 {
+            return
+        }
+        guard let volume = internalVolume else {
+            diskOverviewError = "Не удалось определить внутренний диск"
+            return
+        }
+        diskOverviewLoading = true
+        diskOverviewError = nil
+        let trashURL = DiskOverviewService.defaultTrashURL
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let overview = DiskOverviewService.load(volume: volume, trashURL: trashURL)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.diskOverview = overview
+                self.diskOverviewLoading = false
+            }
+        }
+    }
+
+    public func showDiskOverview() {
+        tab = .disk
+        refreshDiskOverview(force: true)
+    }
+
+    public func openTrash() {
+        let url = diskOverview?.trash.url ?? DiskOverviewService.defaultTrashURL
+        NSWorkspace.shared.open(url)
+    }
+}
+
+extension AppModel {
+    public var freeSpaceText: String {
+        guard let volume = internalVolume else { return "—" }
+        return ByteFormat.string(volume.freeBytes)
+    }
+
+    public func refreshVolumes() {
+        volumes = VolumeInfo.loadAll()
     }
 }
