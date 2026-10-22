@@ -41,6 +41,22 @@
     <string>__SPARKLE_PUBLIC_KEY__</string>
     <key>SUEnableAutomaticChecks</key>
     <false/>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMessage</key>
+            <string>scanFolder</string>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Scan with DiskScope</string>
+            </dict>
+            <key>NSSendFileTypes</key>
+            <array>
+                <string>public.folder</string>
+            </array>
+        </dict>
+    </array>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>DiskScope импортирует выбранные изображения в вашу медиатеку «Фото».</string>
     <key>NSPhotoLibraryAddUsageDescription</key>

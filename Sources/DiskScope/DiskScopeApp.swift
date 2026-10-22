@@ -12,6 +12,7 @@ struct DiskScopeApp: App {
         WindowGroup("DiskScope") {
             ContentView()
                 .environmentObject(model)
+                .onAppear { appDelegate.model = model }
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
@@ -137,13 +138,49 @@ struct DiskScopeApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var model: AppModel? {
+        didSet {
+            if let pendingScanPath, let model {
+                model.scan(path: pendingScanPath)
+                self.pendingScanPath = nil
+            }
+        }
+    }
+
+    private var pendingScanPath: String?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.servicesProvider = self
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func scanFolder(
+        _ pasteboard: NSPasteboard,
+        userData: String,
+        error: AutoreleasingUnsafeMutablePointer<NSString>
+    ) {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        guard let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
+              let folder = urls.first(where: { url in
+                  var isDirectory: ObjCBool = false
+                  return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+                      && isDirectory.boolValue
+              }) else {
+            error.pointee = "Choose a folder to scan." as NSString
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        if let model {
+            model.scan(path: folder.path)
+        } else {
+            pendingScanPath = folder.path
+        }
     }
 }
