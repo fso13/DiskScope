@@ -140,6 +140,8 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var diskOverview: DiskOverview?
     @Published public private(set) var diskOverviewLoading = false
     @Published public private(set) var diskOverviewError: String?
+    @Published public private(set) var scanHistory: [ScanHistoryEntry] = []
+    @Published public var showHistory = false
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
@@ -164,6 +166,7 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.appearance: AppAppearance.system.rawValue,
             AppSettingsKeys.confirmTrash: true,
         ])
+        scanHistory = ScanHistoryStore().load()
         media.attach(appModel: self)
     }
 
@@ -171,36 +174,12 @@ public final class AppModel: ObservableObject {
 
     public var isScanning: Bool { phase == .scanning }
 
-    public var homePath: String {
-        FileManager.default.homeDirectoryForCurrentUser.path
-    }
-
     public var volume: VolumeInfo? {
         volumes.first(where: { $0.isInternal }) ?? volumes.first
     }
 
     public var internalVolume: VolumeInfo? {
         volumes.first(where: { $0.path == "/" }) ?? volumes.first
-    }
-
-    public var rootDisplayName: String {
-        guard let tree else { return "DiskScope" }
-        if tree.rootPath == "/" { return internalVolume?.name ?? "Macintosh HD" }
-        let known: [String: String] = [
-            homePath: "Домашняя папка",
-            homePath + "/Applications": "Программы",
-            "/Applications": "Программы",
-            homePath + "/Downloads": "Загрузки",
-            homePath + "/Documents": "Документы",
-            homePath + "/Desktop": "Рабочий стол",
-            homePath + "/Library": "Библиотека",
-            homePath + "/Movies": "Видео",
-            homePath + "/Music": "Музыка",
-            homePath + "/Pictures": "Изображения",
-        ]
-        if let known = known[tree.rootPath] { return known }
-        let name = URL(fileURLWithPath: tree.rootPath).lastPathComponent
-        return name.isEmpty ? tree.rootPath : name
     }
 
     public var currentNode: ScanNode? {
@@ -404,6 +383,7 @@ public final class AppModel: ObservableObject {
         refreshVolumes()
         rebuildCurrentRows()
         refreshDerived()
+        recordScanHistory(result)
     }
 
     private func failScan(_ error: Error, wasCancelled: Bool) {
@@ -1545,5 +1525,71 @@ extension AppModel {
 
     public func refreshVolumes() {
         volumes = VolumeInfo.loadAll()
+    }
+}
+
+extension AppModel {
+    // MARK: - Scan history
+
+    private var historyStore: ScanHistoryStore { ScanHistoryStore() }
+
+    private func recordScanHistory(_ tree: ScanTree) {
+        var entries = historyStore.load()
+        entries.insert(ScanHistoryEntry.make(tree: tree), at: 0)
+        if entries.count > 30 {
+            entries = Array(entries.prefix(30))
+        }
+        historyStore.save(entries)
+        scanHistory = entries
+    }
+
+    public func reloadHistory() {
+        scanHistory = historyStore.load()
+    }
+
+    public func deleteHistory(_ entry: ScanHistoryEntry) {
+        let entries = historyStore.load().filter { $0.id != entry.id }
+        historyStore.save(entries)
+        scanHistory = entries
+    }
+
+    public func clearHistory() {
+        historyStore.clear()
+        scanHistory = []
+    }
+
+    public func historyDiff(for entry: ScanHistoryEntry) -> HistoryDiff {
+        ScanHistoryDiff.make(entry: entry, tree: tree)
+    }
+
+    public func rescanHistory(_ entry: ScanHistoryEntry) {
+        showHistory = false
+        scan(path: entry.rootPath)
+    }
+}
+
+extension AppModel {
+    public var homePath: String {
+        FileManager.default.homeDirectoryForCurrentUser.path
+    }
+
+    public var rootDisplayName: String {
+        guard let tree else { return "DiskScope" }
+        if tree.rootPath == "/" { return internalVolume?.name ?? "Macintosh HD" }
+        let known: [String: String] = [
+            homePath: "Домашняя папка",
+            homePath + "/Applications": "Программы",
+            "/Applications": "Программы",
+            homePath + "/Downloads": "Загрузки",
+            homePath + "/Documents": "Документы",
+            homePath + "/Desktop": "Рабочий стол",
+            homePath + "/Library": "Библиотека",
+            homePath + "/Movies": "Видео",
+            homePath + "/Music": "Музыка",
+            homePath + "/Pictures": "Изображения",
+        ]
+        if let known = known[tree.rootPath] { return known }
+        let name = URL(fileURLWithPath: tree.rootPath).lastPathComponent
+        return name.isEmpty ? tree.rootPath : name
     }
 }

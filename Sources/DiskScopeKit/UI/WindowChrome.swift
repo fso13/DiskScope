@@ -439,6 +439,17 @@ struct CommandPaletteView: View {
                     model.showDiskOverview()
                 }
             )
+            items.append(
+                PaletteCommand(
+                    id: "history",
+                    title: "История сканов…",
+                    subtitle: "Диск",
+                    symbol: "clock.arrow.circlepath",
+                    shortcut: "⌘8"
+                ) {
+                    model.showHistory = true
+                }
+            )
             if model.collectionCount > 0 {
                 items.append(
                     PaletteCommand(
