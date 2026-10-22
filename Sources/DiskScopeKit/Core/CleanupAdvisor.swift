@@ -89,6 +89,38 @@ public struct CleanupSuggestion: Identifiable, Hashable, Sendable {
     public let disposition: CleanupDisposition
     public let isSelectedByDefault: Bool
 
+    public init(
+        id: String,
+        ruleID: String,
+        title: String,
+        nodeIndex: Int32,
+        name: String,
+        path: String,
+        relativePath: String,
+        size: Int64,
+        itemCount: Int,
+        risk: CleanupRisk,
+        reason: String,
+        isDirectory: Bool,
+        disposition: CleanupDisposition,
+        isSelectedByDefault: Bool
+    ) {
+        self.id = id
+        self.ruleID = ruleID
+        self.title = title
+        self.nodeIndex = nodeIndex
+        self.name = name
+        self.path = path
+        self.relativePath = relativePath
+        self.size = size
+        self.itemCount = itemCount
+        self.risk = risk
+        self.reason = reason
+        self.isDirectory = isDirectory
+        self.disposition = disposition
+        self.isSelectedByDefault = isSelectedByDefault
+    }
+
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -170,7 +202,8 @@ public enum CleanupCatalog {
             risk: .safe,
             explanation: "Файлы уже удалены. Очистка освобождает место безвозвратно.",
             examplePath: "~/.Trash",
-            disposition: .deletePermanently
+            disposition: .deletePermanently,
+            defaultSelected: false
         )
     }
 

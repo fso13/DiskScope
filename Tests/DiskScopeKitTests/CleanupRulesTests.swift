@@ -176,7 +176,7 @@ final class CleanupRulesTests: XCTestCase {
         let trash = try XCTUnwrap(suggestions("trash", in: results).first)
         XCTAssertEqual(trash.risk, .safe)
         XCTAssertEqual(trash.disposition, .deletePermanently)
-        XCTAssertTrue(trash.isSelectedByDefault)
+        XCTAssertFalse(trash.isSelectedByDefault, "Trash empties permanently and must be opt-in")
 
         let backups = try XCTUnwrap(suggestions("ios-backups", in: results).first)
         XCTAssertEqual(backups.risk, .review)

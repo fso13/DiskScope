@@ -6,14 +6,14 @@ struct HeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
-            if model.tab != .media {
+            if model.tab != .media && model.tab != .cleanup {
                 breadcrumbs
             }
 
             HStack(alignment: .center, spacing: 16) {
                 titleBlock
                 Spacer(minLength: 12)
-                if model.tab != .media {
+                if model.tab != .media && model.tab != .cleanup {
                     actions
                 }
             }
@@ -24,7 +24,7 @@ struct HeaderView: View {
                 if model.tab == .map || model.tab == .largest {
                     SearchField(text: $model.searchText)
                 }
-                if model.tab != .media, let filter = model.categoryFilter {
+                if model.tab != .media, model.tab != .cleanup, let filter = model.categoryFilter {
                     CategoryFilterChip(category: filter) {
                         model.clearCategoryFilter()
                     }
@@ -123,6 +123,15 @@ struct HeaderView: View {
                     .font(.system(size: 25, weight: .semibold))
                     .tracking(-0.4)
                 Text("Поиск файлов по типам и перенос в папку или «Фото»")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        } else if model.tab == .cleanup {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Очистка")
+                    .font(.system(size: 25, weight: .semibold))
+                    .tracking(-0.4)
+                Text("Кэши, установщики и бэкапы, которые можно удалить без перескана")
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
