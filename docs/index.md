@@ -178,6 +178,13 @@ hide:
     `diskscope-cli --json --budget 50GB`: машинный отчёт, проверка размера и
     код выхода 3 при превышении.
 
+-   **Shortcuts и Finder**
+
+    ---
+
+    App Intents для сканирования и бюджета плюс Quick Action
+    «Scan with DiskScope» в Finder.
+
 -   **Медиа-поиск**
 
     ---

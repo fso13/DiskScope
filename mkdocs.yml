@@ -59,6 +59,7 @@ nav:
   - Скачать: https://github.com/fso13/DiskScope/releases/latest
   - Как пользоваться: usage.md
   - CLI: cli.md
+  - Автоматизация: automation.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
