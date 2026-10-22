@@ -79,12 +79,12 @@ git push origin v1.1.1
 
 ### Что попадает в Release
 
-- `DiskScope-macos-universal.dmg` — кастомный установщик с фирменным фоном:
-  приложение и ярлык `Applications`;
-- `DiskScope-macos-universal.zip` — резервный архив с приложением;
+- `DiskScope-macos-universal.dmg` и версионированный DMG — установщик с
+  приложением и ярлыком `Applications`;
+- `DiskScope-macos-universal.zip` и версионированный ZIP — резервный архив;
+- `appcast.xml` и `diskscope.rb` — при настроенных Sparkle и Homebrew;
 - `SHA256SUMS.txt` — контрольные суммы DMG и ZIP;
-- текст из `CHANGELOG.md` + инструкция по установке + прямые ссылки на
-  DMG, ZIP, страницу релиза и CHANGELOG.
+- текст из `CHANGELOG.md` + инструкция по установке + прямые ссылки.
 
 Версионированные `DiskScope-<version>-macos-universal.dmg` и
 `DiskScope-<version>-macos-universal.zip` остаются в артефактах workflow.
@@ -169,21 +169,24 @@ Workflow передаёт `MKDOCS_SITE_URL` и `MKDOCS_REPO_URL` из конте
   для `GITHUB_TOKEN`, если организация не разрешает выдавать права на уровне
   job. В release.yml явно запрошено `contents: write`, в pages.yml —
   `pages: write` и `id-token: write`.
-- Секреты не нужны: используется встроенный `GITHUB_TOKEN`.
+- Для публикации достаточно встроенного `GITHUB_TOKEN`; сертификат и Sparkle-ключи — опциональные секреты для подписи и обновлений.
 - Для публикации релиза не требуется отдельный PAT.
 
-## Подпись и нотаризация
+## Подпись, нотаризация и Sparkle
 
-Сейчас приложение подписывается ad-hoc. Для публичного распространения
-рекомендуется:
+Если в репозитории заданы секреты `MACOS_CERTIFICATE`,
+`MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` и
+`APPLE_APP_PASSWORD`, workflow:
 
-1. получить Developer ID Application;
-2. подписывать `codesign --deep --force --options runtime --sign "Developer ID Application: ..."`;
-3. прогнать `xcrun notarytool submit ... --wait` и `xcrun stapler staple`;
-4. хранить сертификат и пароль в GitHub Secrets.
+1. импортирует Developer ID Application во временную keychain;
+2. собирает приложение с `SIGN_IDENTITY` (hardened runtime, timestamp);
+3. отправляет DMG в `notarytool`, staple-ит app и DMG, проверяет `spctl`;
+4. пересобирает ZIP уже со stapled-приложением.
 
-Это отдельный шаг; текущий workflow собирает рабочий артефакт для локальной
-установки.
+Без секретов собирается рабочий ad-hoc-артефакт. Для Sparkle добавьте
+`SPARKLE_PUBLIC_KEY` и `SPARKLE_PRIVATE_KEY`; workflow сгенерирует
+`appcast.xml` и загрузит его в релиз. Полная инструкция —
+[Распространение](distribution.md).
 
 ## Ручной запуск
 
@@ -199,5 +202,5 @@ Workflow передаёт `MKDOCS_SITE_URL` и `MKDOCS_REPO_URL` из конте
 | `Resource not accessible by integration` | права `contents: write` / настройки Actions |
 | Pages не публикуются | Settings → Pages → Source = GitHub Actions |
 | `mkdocs build --strict` падает | битые ссылки или отсутствующие изображения в `docs/` |
-| Приложение не открывается | Gatekeeper: «Открыть» через контекстное меню; подпись ad-hoc |
+| Приложение не открывается | Для нотаризованного релиза проверьте staple/`spctl`; локальная ad-hoc-сборка открывается через «Открыть» |
 | Пустой Release body | раздел версии в `CHANGELOG.md` не найден — сработал fallback из git log |

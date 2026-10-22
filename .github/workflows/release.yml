@@ -31,6 +31,31 @@ jobs:
           swift --version
           xcodebuild -version
 
+      - name: Import Developer ID certificate
+        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          if [ -z "$IDENTITY" ]; then
+            echo "error: Developer ID Application identity not found" >&2
+            exit 1
+          fi
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
       - name: Run tests
         run: swift test
 
@@ -38,6 +63,7 @@ jobs:
         env:
           UNIVERSAL: '1'
           BUILD_NUMBER: ${{ github.run_number }}
+          SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
@@ -88,6 +114,39 @@ jobs:
           codesign --verify --deep --strict "$MOUNT/DiskScope.app"
           hdiutil detach "$MOUNT" >/dev/null
 
+      - name: Notarize app and DMG
+        if: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_PASSWORD != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./scripts/notarize.sh dist/DiskScope.app dist/DiskScope.dmg
+          ditto -c -k --keepParent dist/DiskScope.app "dist/${ARCHIVE_NAME}"
+          cp "dist/${ARCHIVE_NAME}" "dist/${STABLE_ZIP}"
+          (cd dist && shasum -a 256 "${STABLE_DMG}" "${STABLE_ZIP}" > SHA256SUMS.txt)
+          echo "DMG_SHA256=$(awk 'NR==1 {print $1}' dist/SHA256SUMS.txt)" >> "$GITHUB_ENV"
+          echo "ZIP_SHA256=$(awk 'NR==2 {print $1}' dist/SHA256SUMS.txt)" >> "$GITHUB_ENV"
+
+      - name: Generate Sparkle appcast
+        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          TOOL=".build/artifacts/sparkle/Sparkle/bin/generate_keys"
+          echo "$SPARKLE_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sparkle.key"
+          "$TOOL" -f "$RUNNER_TEMP/sparkle.key"
+          rm -f "$RUNNER_TEMP/sparkle.key"
+          ./scripts/generate-appcast.sh dist
+
+      - name: Update Homebrew cask
+        run: |
+          set -euo pipefail
+          VERSION="$VERSION" SHA256="$DMG_SHA256" ./scripts/update-cask.sh
+          cp Casks/diskscope.rb dist/diskscope.rb
+
       - name: Create release notes
         run: |
           set -euo pipefail
@@ -117,6 +176,8 @@ jobs:
             echo
             echo "ZIP-архив \`${STABLE_ZIP}\` — альтернатива для тех, кто предпочитает архив."
             echo
+            echo "Homebrew: \`brew install --cask fso13/diskscope/diskscope\`"
+            echo
             echo "Образ собран universal: Apple Silicon и Intel (macOS 14+)."
             echo
             echo "**Все изменения:** [CHANGELOG.md](${CHANGELOG_URL})"
@@ -138,6 +199,8 @@ jobs:
             dist/DiskScope-*.dmg
             dist/DiskScope-*.zip
             dist/SHA256SUMS.txt
+            dist/appcast.xml
+            dist/diskscope.rb
             release-notes.md
           if-no-files-found: error
           retention-days: 30
@@ -148,6 +211,9 @@ jobs:
         run: |
           set -euo pipefail
           TITLE="DiskScope ${GITHUB_REF_NAME}"
+          EXTRA_ASSETS=()
+          if [ -f dist/appcast.xml ]; then EXTRA_ASSETS+=(dist/appcast.xml); fi
+          if [ -f dist/diskscope.rb ]; then EXTRA_ASSETS+=(dist/diskscope.rb); fi
           PRERELEASE_FLAG=""
           if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
             PRERELEASE_FLAG="--prerelease"
@@ -157,10 +223,16 @@ jobs:
             gh release edit "${GITHUB_REF_NAME}" \
               --title "$TITLE" \
               --notes-file release-notes.md
+            EXTRA_ASSETS=()
+            if [ -f dist/appcast.xml ]; then EXTRA_ASSETS+=(dist/appcast.xml); fi
+            if [ -f dist/diskscope.rb ]; then EXTRA_ASSETS+=(dist/diskscope.rb); fi
             gh release upload "${GITHUB_REF_NAME}" \
               "dist/${STABLE_DMG}" \
               "dist/${STABLE_ZIP}" \
+              "dist/${DMG_NAME}" \
+              "dist/${ARCHIVE_NAME}" \
               dist/SHA256SUMS.txt \
+              "${EXTRA_ASSETS[@]}" \
               --clobber
             if [[ -n "$PRERELEASE_FLAG" ]]; then
               gh release edit "${GITHUB_REF_NAME}" --prerelease
@@ -169,7 +241,10 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" \
               "dist/${STABLE_DMG}" \
               "dist/${STABLE_ZIP}" \
+              "dist/${DMG_NAME}" \
+              "dist/${ARCHIVE_NAME}" \
               dist/SHA256SUMS.txt \
+              "${EXTRA_ASSETS[@]}" \
               --title "$TITLE" \
               --notes-file release-notes.md \
               --verify-tag \
@@ -195,5 +270,5 @@ jobs:
             echo "| SHA-256 DMG | \`${DMG_SHA256}\` |"
             echo "| SHA-256 ZIP | \`${ZIP_SHA256}\` |"
             echo "| Архитектуры | arm64 + x86_64 |"
-            echo "| Тесты | 42 XCTest |"
+            echo "| Тесты | 103 XCTest |"
           } >> "$GITHUB_STEP_SUMMARY"

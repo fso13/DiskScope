@@ -6,6 +6,7 @@ import SwiftUI
 struct DiskScopeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
+    private let sparkle = SparkleUpdater()
 
     var body: some Scene {
         WindowGroup("DiskScope") {
@@ -22,6 +23,12 @@ struct DiskScopeApp: App {
                 Button("Отменить удаление") { model.undoLastTrash() }
                     .keyboardShortcut("z", modifiers: .command)
                     .disabled(!model.canUndoTrash)
+            }
+
+            CommandGroup(after: .appInfo) {
+                Button("Проверить обновления…") {
+                    sparkle.checkForUpdates()
+                }
             }
 
             CommandGroup(replacing: .appSettings) {
