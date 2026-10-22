@@ -292,6 +292,84 @@ final class ScannerTests: XCTestCase {
         XCTAssertEqual(tree.totalSize, oldTotal)
     }
 
+    func testRestoringRemovalBringsBackSizesAndFiles() throws {
+        let root = try makeFixture()
+        let tree = try scan(root)
+        let sub = try XCTUnwrap(child(named: "Sub", in: tree))
+        let inner = try XCTUnwrap(child(named: "inner.bin", in: tree, parent: sub))
+        let oldTotal = tree.totalSize
+        let oldFiles = tree.totalFiles
+        let subSize = tree.node(sub).size
+
+        let removal = tree.removingSubtrees(at: [sub])
+        XCTAssertEqual(removal.groups.count, 1)
+        let group = try XCTUnwrap(removal.groups.first)
+        XCTAssertEqual(group.root, sub)
+        XCTAssertTrue(group.marked.contains(sub))
+        XCTAssertTrue(group.marked.contains(inner))
+        XCTAssertEqual(group.bytes, subSize)
+
+        let restored = removal.tree.restoringSubtrees(groups: removal.groups)
+        XCTAssertFalse(restored.isDeleted(sub))
+        XCTAssertFalse(restored.isDeleted(inner))
+        XCTAssertEqual(restored.totalSize, oldTotal)
+        XCTAssertEqual(restored.totalFiles, oldFiles)
+        XCTAssertEqual(restored.node(sub).size, subSize)
+    }
+
+    func testUndoNestedRemovalKeepsEarlierDeletion() throws {
+        let root = try makeFixture()
+        let tree = try scan(root)
+        let sub = try XCTUnwrap(child(named: "Sub", in: tree))
+        let inner = try XCTUnwrap(child(named: "inner.bin", in: tree, parent: sub))
+        let oldTotal = tree.totalSize
+        let oldFiles = tree.totalFiles
+
+        let first = tree.removingSubtrees(at: [inner])
+        let second = first.tree.removingSubtrees(at: [sub])
+
+        let afterSecondUndo = second.tree.restoringSubtrees(groups: second.groups)
+        XCTAssertFalse(afterSecondUndo.isDeleted(sub))
+        XCTAssertTrue(afterSecondUndo.isDeleted(inner), "Earlier deletion must stay pending")
+        XCTAssertEqual(afterSecondUndo.totalSize, first.tree.totalSize)
+        XCTAssertEqual(afterSecondUndo.totalFiles, first.tree.totalFiles)
+
+        let fullyRestored = afterSecondUndo.restoringSubtrees(groups: first.groups)
+        XCTAssertFalse(fullyRestored.isDeleted(inner))
+        XCTAssertEqual(fullyRestored.totalSize, oldTotal)
+        XCTAssertEqual(fullyRestored.totalFiles, oldFiles)
+    }
+
+    func testRestoringRemovalIsIdempotent() throws {
+        let root = try makeFixture()
+        let tree = try scan(root)
+        let sub = try XCTUnwrap(child(named: "Sub", in: tree))
+        let removal = tree.removingSubtrees(at: [sub])
+        let restored = removal.tree.restoringSubtrees(groups: removal.groups)
+        let restoredAgain = restored.restoringSubtrees(groups: removal.groups)
+
+        XCTAssertEqual(restoredAgain.totalSize, restored.totalSize)
+        XCTAssertEqual(restoredAgain.totalFiles, restored.totalFiles)
+    }
+
+    func testMultipleRemovalGroupsRestoreTogether() throws {
+        let root = try makeFixture()
+        let tree = try scan(root)
+        let sub = try XCTUnwrap(child(named: "Sub", in: tree))
+        let big = try XCTUnwrap(child(named: "big.bin", in: tree))
+        let oldTotal = tree.totalSize
+        let oldFiles = tree.totalFiles
+
+        let removal = tree.removingSubtrees(at: [sub, big])
+        XCTAssertEqual(removal.groups.count, 2)
+
+        let restored = removal.tree.restoringSubtrees(groups: removal.groups)
+        XCTAssertEqual(restored.totalSize, oldTotal)
+        XCTAssertEqual(restored.totalFiles, oldFiles)
+        XCTAssertFalse(restored.isDeleted(sub))
+        XCTAssertFalse(restored.isDeleted(big))
+    }
+
     func testChildrenSumToParentSize() throws {
         let root = try makeFixture()
         let tree = try scan(root)

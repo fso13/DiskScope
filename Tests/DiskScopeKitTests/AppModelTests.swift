@@ -118,6 +118,16 @@ final class AppModelTests: XCTestCase {
         model.showTrashConfirmation = false
     }
 
+    func testUndoIsUnavailableWithoutDeletion() throws {
+        let tree = try scannedTree()
+        let model = AppModel()
+        model.loadPreview(tree: tree)
+
+        XCTAssertFalse(model.canUndoTrash)
+        model.undoLastTrash()
+        XCTAssertFalse(model.canUndoTrash)
+    }
+
     func testSearchAndNavigationReset() throws {
         let tree = try scannedTree()
         let model = AppModel()
