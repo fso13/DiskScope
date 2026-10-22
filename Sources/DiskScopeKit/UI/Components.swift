@@ -170,6 +170,7 @@ struct SegmentedTabs: View {
         case .cleanup: return "Рекомендации по очистке (⌘5)"
         case .disk: return "Место, purgeable, снимки и Корзина (⌘7)"
         case .duplicates: return "Одинаковые файлы по содержимому (⌘9)"
+        case .similar: return "Похожие изображения через Vision (⌘0)"
         }
     }
 }

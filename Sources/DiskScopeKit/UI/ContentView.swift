@@ -146,13 +146,16 @@ struct ReadyView: View {
                     DiskOverviewView()
                 case .duplicates:
                     DuplicatesView()
+                case .similar:
+                    SimilarImagesView()
                 }
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if model.tab != .media && model.tab != .disk && model.tab != .duplicates {
+            if model.tab != .media && model.tab != .disk
+                && model.tab != .duplicates && model.tab != .similar {
                 StatusBar()
             }
         }

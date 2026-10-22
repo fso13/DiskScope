@@ -282,6 +282,29 @@ final class SnapshotRenderer {
         model.tab = .duplicates
         render(model: model, named: "18-duplicates-light", dark: false)
         render(model: model, named: "18-duplicates-dark", dark: true)
+
+        let similarDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DiskScopeSimilarSnapshot", isDirectory: true)
+        try? FileManager.default.createDirectory(at: similarDirectory, withIntermediateDirectories: true)
+        let sourceImage = URL(fileURLWithPath: "/System/Library/Wallpapers/.default/DefaultAerial.heic")
+        let similarNames = ["IMG_2048.heic", "IMG_2048-edit.heic", "IMG_2048-copy.heic"]
+        let similarFiles = zip(similarNames, model.largestItems.prefix(3)).map { name, row in
+            let url = similarDirectory.appendingPathComponent(name)
+            try? FileManager.default.copyItem(at: sourceImage, to: url)
+            return SimilarImage(
+                index: row.id,
+                path: url.path,
+                relativePath: "Pictures/\(name)",
+                size: 4_800_000,
+                modified: nil
+            )
+        }
+        model.previewSimilar([
+            SimilarImageGroup(id: "preview-similar", images: similarFiles),
+        ])
+        model.tab = .similar
+        render(model: model, named: "19-similar-light", dark: false)
+        render(model: model, named: "19-similar-dark", dark: true)
         model.tab = .map
 
         model.previewWelcome()

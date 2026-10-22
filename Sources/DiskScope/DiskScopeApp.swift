@@ -102,6 +102,9 @@ struct DiskScopeApp: App {
                 Button("Дубликаты") { model.tab = .duplicates }
                     .keyboardShortcut("9", modifiers: .command)
                     .disabled(model.tree == nil)
+                Button("Похожие изображения") { model.tab = .similar }
+                    .keyboardShortcut("0", modifiers: .command)
+                    .disabled(model.tree == nil)
                 Divider()
                 Button("Наверх") { model.goUp() }
                     .keyboardShortcut(.upArrow, modifiers: .command)
