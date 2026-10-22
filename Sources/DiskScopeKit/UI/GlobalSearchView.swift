@@ -230,10 +230,18 @@ private struct SearchResultRow: View {
             NodeIcon(category: hit.category, isContainer: hit.kind.isContainer, size: 27)
 
             VStack(alignment: .leading, spacing: 2) {
-                highlightedName
-                    .font(.system(size: 12.5, weight: .medium))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack(spacing: 4) {
+                    highlightedName
+                        .font(.system(size: 12.5, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if hit.isHardLink {
+                        Image(systemName: "link")
+                            .font(.system(size: 7.5, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .help("Жёсткая ссылка: размер уже учтён в другой записи")
+                    }
+                }
                 Text(hit.relativePath.isEmpty ? hit.path : hit.relativePath)
                     .font(.system(size: 9.5, design: .monospaced))
                     .foregroundStyle(.secondary)

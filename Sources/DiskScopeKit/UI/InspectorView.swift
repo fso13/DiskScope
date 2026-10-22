@@ -198,6 +198,9 @@ private struct InspectorDetails: View {
             if let tree, let node {
                 infoRow("Тип", tree.category(of: index).title)
                 infoRow("Элементов", node.nodeKind.isContainer ? ByteFormat.count(Int(node.itemCount)) : "—")
+                if node.isHardLink {
+                    infoRow("Жёсткая ссылка", "размер учтён в другой записи")
+                }
                 if node.nodeKind == .package, metadata?.isPackage == true {
                     infoRow("Пакет", "да, один объект")
                 }

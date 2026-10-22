@@ -54,6 +54,7 @@ public final class AppModel: ObservableObject {
         public let category: FileCategory
         public let isContainer: Bool
         public let isAggregate: Bool
+        public let isHardLink: Bool
         public let itemCount: Int
         public let fraction: Double
         public let depth: Int
@@ -877,6 +878,7 @@ public final class AppModel: ObservableObject {
             category: tree.category(of: index),
             isContainer: node.nodeKind.isContainer,
             isAggregate: isAggregate,
+            isHardLink: node.isHardLink,
             itemCount: Int(node.itemCount),
             fraction: parentSize > 0 ? Double(node.size) / Double(parentSize) : 0,
             depth: 0
