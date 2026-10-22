@@ -88,6 +88,13 @@ hide:
     Видео, изображения, аудио, архивы, документы, код и приложения. Удаление —
     только по подтверждению, с мгновенным пересчётом дерева.
 
+-   **Очистка по правилам**
+
+    ---
+
+    Кэши Xcode, старые установщики, бэкапы и Docker. Риск, цель по гигабайтам
+    и отмена через `⌘Z`.
+
 -   **Медиа-поиск**
 
     ---
@@ -153,6 +160,10 @@ Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте обр�
 <figure>
 <img src="assets/screenshots/05-map-folder.png" alt="Вложенная карта папки">
 <figcaption>Вложенная карта</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/14-cleanup-light.png" alt="Мастер очистки в DiskScope">
+<figcaption>Очистка по правилам</figcaption>
 </figure>
 </div>
 

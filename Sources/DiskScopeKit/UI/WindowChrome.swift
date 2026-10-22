@@ -419,6 +419,17 @@ struct CommandPaletteView: View {
             )
             items.append(
                 PaletteCommand(
+                    id: "cleanup",
+                    title: "Очистка",
+                    subtitle: "Переход",
+                    symbol: "sparkles",
+                    shortcut: "⌘5"
+                ) {
+                    model.tab = .cleanup
+                }
+            )
+            items.append(
+                PaletteCommand(
                     id: "reveal",
                     title: "Показать в Finder",
                     subtitle: "Файлы",

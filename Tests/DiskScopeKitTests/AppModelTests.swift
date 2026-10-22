@@ -36,6 +36,31 @@ final class AppModelTests: XCTestCase {
         try DiskScanner(options: ScanOptions(minimumFileSize: 64 * 1024)).scan(path: scratch.path)
     }
 
+    private func cleanupSuggestion(
+        id: String,
+        size: Int64,
+        risk: CleanupRisk = .safe,
+        permanent: Bool = false,
+        selected: Bool = true
+    ) -> CleanupSuggestion {
+        CleanupSuggestion(
+            id: id,
+            ruleID: id,
+            title: id,
+            nodeIndex: 1,
+            name: id,
+            path: "/tmp/\(id)",
+            relativePath: id,
+            size: size,
+            itemCount: 1,
+            risk: risk,
+            reason: "reason",
+            isDirectory: false,
+            disposition: permanent ? .deletePermanently : .trash,
+            isSelectedByDefault: selected
+        )
+    }
+
     func testScanCompletesAndPopulatesState() async throws {
         let model = AppModel()
         let ready = expectation(description: "scan finished")
@@ -126,6 +151,33 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.canUndoTrash)
         model.undoLastTrash()
         XCTAssertFalse(model.canUndoTrash)
+    }
+
+    func testCleanupPreviewSelectionAndTotals() throws {
+        let model = AppModel()
+        model.loadPreview(tree: try scannedTree())
+        let safe = cleanupSuggestion(id: "safe", size: 100)
+        let review = cleanupSuggestion(id: "review", size: 200, risk: .review, selected: false)
+        let trash = cleanupSuggestion(id: "trash", size: 300, permanent: true, selected: false)
+        model.previewCleanup(suggestions: [safe, review, trash])
+
+        XCTAssertEqual(model.cleanupTotalSize, 600)
+        XCTAssertEqual(model.cleanupSelectedCount, 1)
+        XCTAssertEqual(model.cleanupSelectedSize, 100)
+        XCTAssertTrue(model.cleanupCanApply)
+        XCTAssertFalse(model.cleanupHasPermanentSelection)
+
+        model.toggleCleanupSelection("trash")
+        XCTAssertTrue(model.cleanupHasPermanentSelection)
+        XCTAssertTrue(model.cleanupConfirmationMessage.contains("безвозвратно"))
+
+        model.clearCleanupSelection()
+        XCTAssertFalse(model.cleanupCanApply)
+        model.selectAllSafeCleanup()
+        XCTAssertEqual(model.cleanupSelection, Set(["safe"]))
+        model.selectCleanup([review, trash])
+        XCTAssertEqual(model.cleanupSelection, Set(["safe", "review", "trash"]))
+        XCTAssertEqual(model.cleanupSelectedSize, 600)
     }
 
     func testSearchAndNavigationReset() throws {

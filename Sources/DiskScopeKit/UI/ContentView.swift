@@ -27,6 +27,12 @@ public struct ContentView: View {
         } message: {
             Text(trashMessage)
         }
+        .alert("Очистить выбранное?", isPresented: $model.showCleanupConfirmation) {
+            Button("Отмена", role: .cancel) {}
+            Button("Очистить", role: .destructive) { model.confirmCleanup() }
+        } message: {
+            Text(model.cleanupConfirmationMessage)
+        }
         .alert("Ошибка", isPresented: errorBinding) {
             Button("OK") { model.dismissError() }
         } message: {
@@ -116,6 +122,8 @@ struct ReadyView: View {
                     TypesView()
                 case .media:
                     MediaView(media: model.media)
+                case .cleanup:
+                    CleanupView()
                 }
             }
             .padding(.horizontal, 18)

@@ -124,6 +124,87 @@ final class SnapshotRenderer {
         render(model: model, named: "10-media-light", dark: false)
         render(model: model, named: "11-media-dark", dark: true)
 
+        let cleanup = [
+            cleanupSuggestion(
+                id: "xcode-derived-data",
+                title: "DerivedData Xcode",
+                name: "DerivedData",
+                relativePath: "Library/Developer/Xcode/DerivedData",
+                size: 12_400_000_000,
+                risk: .safe,
+                reason: "Индексы и промежуточные сборки. Xcode пересоздаст их при следующей сборке.",
+                nodeIndex: 1
+            ),
+            cleanupSuggestion(
+                id: "xcode-device-support",
+                title: "Символы устройств Xcode",
+                name: "iOS DeviceSupport",
+                relativePath: "Library/Developer/Xcode/iOS DeviceSupport",
+                size: 3_200_000_000,
+                risk: .safe,
+                reason: "Отладочные символы для версий ОС. Xcode скачает их снова.",
+                nodeIndex: 2
+            ),
+            cleanupSuggestion(
+                id: "downloads-installers",
+                title: "Старые установщики",
+                name: "Xcode_16.4.xip",
+                relativePath: "Downloads/Xcode_16.4.xip",
+                size: 1_800_000_000,
+                risk: .safe,
+                reason: "Установщик старше 30 дней. После установки обычно не нужен.",
+                isDirectory: false,
+                nodeIndex: 3
+            ),
+            cleanupSuggestion(
+                id: "ios-backups",
+                title: "Старые бэкапы iPhone",
+                name: "00008110-001A",
+                relativePath: "Library/Application Support/MobileSync/Backup/00008110-001A",
+                size: 8_100_000_000,
+                risk: .review,
+                reason: "Локальная копия старше 180 дней. Проверьте, что она не единственная.",
+                nodeIndex: 4
+            ),
+            cleanupSuggestion(
+                id: "docker-disk-image",
+                title: "Образ Docker",
+                name: "Docker.raw",
+                relativePath: "Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw",
+                size: 21_000_000_000,
+                risk: .review,
+                reason: "Диск с образами и контейнерами Docker. Данные будут потеряны.",
+                isDirectory: false,
+                nodeIndex: 5
+            ),
+            cleanupSuggestion(
+                id: "node-modules",
+                title: "node_modules",
+                name: "node_modules",
+                relativePath: "Projects/web/node_modules",
+                size: 2_300_000_000,
+                risk: .expert,
+                reason: "Зависимости проекта. Восстановимы через npm install.",
+                nodeIndex: 6
+            ),
+            cleanupSuggestion(
+                id: "trash",
+                title: "Корзина",
+                name: "Корзина",
+                relativePath: ".Trash",
+                size: 4_600_000_000,
+                risk: .safe,
+                reason: "Файлы уже удалены. Очистка освобождает место безвозвратно.",
+                disposition: .deletePermanently,
+                nodeIndex: 7,
+                selected: false
+            ),
+        ]
+        model.previewCleanup(suggestions: cleanup)
+        model.tab = .cleanup
+        render(model: model, named: "14-cleanup-light", dark: false)
+        render(model: model, named: "15-cleanup-dark", dark: true)
+
         model.previewWelcome()
         render(model: model, named: "06-welcome", dark: false)
         render(model: model, named: "07-welcome-dark", dark: true)
@@ -145,8 +226,39 @@ final class SnapshotRenderer {
         renderSettings(named: "13-settings-dark", dark: true)
     }
 
-    private func renderSettings(named name: String, dark: Bool) {
-        UserDefaults.standard.set("system", forKey: "app.settings.appearance")
+    private func cleanupSuggestion(
+        id: String,
+        title: String,
+        name: String,
+        relativePath: String,
+        size: Int64,
+        risk: CleanupRisk,
+        reason: String,
+        disposition: CleanupDisposition = .trash,
+        isDirectory: Bool = true,
+        nodeIndex: Int32,
+        selected: Bool? = nil
+    ) -> CleanupSuggestion {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        return CleanupSuggestion(
+            id: id,
+            ruleID: id,
+            title: title,
+            nodeIndex: nodeIndex,
+            name: name,
+            path: home.appendingPathComponent(relativePath).path,
+            relativePath: relativePath,
+            size: size,
+            itemCount: 12,
+            risk: risk,
+            reason: reason,
+            isDirectory: isDirectory,
+            disposition: disposition,
+            isSelectedByDefault: selected ?? (risk == .safe && disposition == .trash)
+        )
+    }
+
+    private func renderSettings(named name: String, dark: Bool) {        UserDefaults.standard.set("system", forKey: "app.settings.appearance")
         UserDefaults.standard.set(true, forKey: "app.settings.confirmTrash")
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         NSApplication.shared.appearance = appearance

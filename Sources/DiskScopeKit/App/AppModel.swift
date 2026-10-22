@@ -16,6 +16,7 @@ public final class AppModel: ObservableObject {
         case largest
         case types
         case media
+        case cleanup
 
         public var id: String { rawValue }
 
@@ -25,6 +26,7 @@ public final class AppModel: ObservableObject {
             case .largest: return "Крупнейшие"
             case .types: return "Типы файлов"
             case .media: return "Медиа"
+            case .cleanup: return "Очистка"
             }
         }
 
@@ -34,6 +36,7 @@ public final class AppModel: ObservableObject {
             case .largest: return "list.number"
             case .types: return "chart.bar.xaxis"
             case .media: return "photo.on.rectangle.angled"
+            case .cleanup: return "sparkles"
             }
         }
     }
@@ -64,7 +67,13 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var phase: Phase = .welcome
     @Published public private(set) var tree: ScanTree?
     @Published public private(set) var currentIndex: Int32 = 0
-    @Published public var tab: Tab = .map
+    @Published public var tab: Tab = .map {
+        didSet {
+            if tab == .cleanup {
+                loadCleanupSuggestionsIfNeeded()
+            }
+        }
+    }
     @Published public var selection: Set<Int32> = []
     @Published public private(set) var progress: ScanProgress?
     @Published public private(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
@@ -87,6 +96,10 @@ public final class AppModel: ObservableObject {
     @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
     @Published public private(set) var canUndoTrash = false
+    @Published public private(set) var cleanupSuggestions: [CleanupSuggestion] = []
+    @Published public var cleanupSelection: Set<String> = []
+    @Published public private(set) var cleanupLoading = false
+    @Published public var showCleanupConfirmation = false
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
@@ -97,6 +110,8 @@ public final class AppModel: ObservableObject {
     private let rowLimit = 2500
     private var trashUndoStack: [TrashUndoEntry] = []
     private var fileOperationInFlight = false
+    private var cleanupGeneration = 0
+    private var cleanupTreeID: ObjectIdentifier?
 
     public init() {
         UserDefaults.standard.register(defaults: [
@@ -261,6 +276,7 @@ public final class AppModel: ObservableObject {
         categoryFilter = nil
         searchText = ""
         resetTrashUndo()
+        resetCleanup()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -304,6 +320,9 @@ public final class AppModel: ObservableObject {
         activeScanID = UUID()
         progress = nil
         phase = tree == nil ? .welcome : .ready
+        if tab == .cleanup {
+            loadCleanupSuggestionsIfNeeded()
+        }
     }
 
     public func chooseFolder() {
@@ -511,6 +530,7 @@ public final class AppModel: ObservableObject {
         rebuildCurrentRows()
         refreshVolumes()
         refreshDerived()
+        invalidateCleanup()
         showToast(
             "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes)) · ⌘Z — отменить",
             symbol: "trash.fill"
@@ -581,6 +601,7 @@ public final class AppModel: ObservableObject {
             rebuildCurrentRows()
             refreshVolumes()
             refreshDerived()
+            invalidateCleanup()
             let bytes = groups.reduce(Int64(0)) { $0 + $1.bytes }
             showToast(
                 "Возвращено: \(Plural.items(restoredCount)) · \(ByteFormat.string(bytes))",
@@ -616,6 +637,157 @@ public final class AppModel: ObservableObject {
     private func resetTrashUndo() {
         trashUndoStack.removeAll()
         canUndoTrash = false
+    }
+
+    // MARK: - Cleanup
+
+    public func loadCleanupSuggestionsIfNeeded() {
+        guard let tree, cleanupTreeID != ObjectIdentifier(tree) else { return }
+        loadCleanupSuggestions()
+    }
+
+    public func loadCleanupSuggestions() {
+        guard let tree else {
+            resetCleanup()
+            return
+        }
+        cleanupGeneration += 1
+        let generation = cleanupGeneration
+        cleanupTreeID = ObjectIdentifier(tree)
+        cleanupLoading = true
+
+        let environment = CleanupEnvironment(
+            homePath: homePath,
+            runningBundleIdentifiers: runningBundleIdentifiers()
+        )
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let suggestions = CleanupAdvisor.recommend(tree: tree, environment: environment)
+            DispatchQueue.main.async {
+                guard let self,
+                      self.cleanupGeneration == generation,
+                      let current = self.tree,
+                      current === tree else { return }
+                self.cleanupSuggestions = suggestions
+                self.cleanupSelection = Set(
+                    suggestions.filter { $0.isSelectedByDefault }.map(\.id)
+                )
+                self.cleanupLoading = false
+            }
+        }
+    }
+
+    public func requestCleanup() {
+        guard cleanupCanApply else { return }
+        if cleanupHasPermanentSelection
+            || UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
+            showCleanupConfirmation = true
+        } else {
+            confirmCleanup()
+        }
+    }
+
+    public func confirmCleanup() {
+        showCleanupConfirmation = false
+        guard !fileOperationInFlight, !isScanning, let tree else { return }
+        let selected = cleanupSelectedSuggestions.filter { suggestion in
+            suggestion.nodeIndex > 0
+                && Int(suggestion.nodeIndex) < tree.count
+                && !tree.isDeleted(suggestion.nodeIndex)
+        }
+        guard !selected.isEmpty else { return }
+        fileOperationInFlight = true
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var trashed: [(index: Int32, original: URL, trashed: URL)] = []
+            var permanent: [Int32] = []
+            var failures: [(url: URL, message: String)] = []
+            for suggestion in selected {
+                let url = URL(fileURLWithPath: suggestion.path)
+                do {
+                    if suggestion.disposition == .deletePermanently {
+                        try FileManager.default.removeItem(at: url)
+                        permanent.append(suggestion.nodeIndex)
+                    } else {
+                        var resultingURL: NSURL?
+                        try FileManager.default.trashItem(at: url, resultingItemURL: &resultingURL)
+                        trashed.append((suggestion.nodeIndex, url, (resultingURL as URL?) ?? url))
+                    }
+                } catch {
+                    failures.append((url, error.localizedDescription))
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.applyCleanup(
+                    tree: tree,
+                    trashed: trashed,
+                    permanent: permanent,
+                    failures: failures
+                )
+            }
+        }
+    }
+
+    private func applyCleanup(
+        tree scanTree: ScanTree,
+        trashed: [(index: Int32, original: URL, trashed: URL)],
+        permanent: [Int32],
+        failures: [(url: URL, message: String)]
+    ) {
+        fileOperationInFlight = false
+        let indices = trashed.map(\.index) + permanent
+        guard !indices.isEmpty else {
+            if let failure = failures.first {
+                errorMessage = "Не удалось очистить «\(failure.url.lastPathComponent)»: \(failure.message)"
+            }
+            return
+        }
+
+        let removed = scanTree.removingSubtrees(at: indices)
+        recordUndo(removal: removed, trashed: trashed)
+        fileCount = removed.tree.totalFiles
+        folderCount = removed.tree.directoryCount()
+        tree = removed.tree
+        selection = []
+        if removed.tree.isDeleted(currentIndex) {
+            var cursor = currentIndex
+            while cursor > 0, removed.tree.isDeleted(cursor) {
+                cursor = removed.tree.node(cursor).parent
+            }
+            currentIndex = max(cursor, 0)
+        }
+        rebuildCurrentRows()
+        refreshVolumes()
+        refreshDerived()
+        invalidateCleanup()
+
+        var text = "Очищено: \(Plural.items(indices.count)) · \(ByteFormat.string(removed.bytes))"
+        if !permanent.isEmpty {
+            text += " · безвозвратно: \(Plural.items(permanent.count))"
+        }
+        showToast(text, symbol: "sparkles")
+        if let failure = failures.first {
+            errorMessage = "Не удалось очистить «\(failure.url.lastPathComponent)»: \(failure.message)"
+        }
+    }
+
+    private func resetCleanup() {
+        cleanupGeneration += 1
+        cleanupSuggestions = []
+        cleanupSelection = []
+        cleanupLoading = false
+        cleanupTreeID = nil
+    }
+
+    private func invalidateCleanup() {
+        resetCleanup()
+        if tab == .cleanup {
+            loadCleanupSuggestionsIfNeeded()
+        }
+    }
+
+    private func runningBundleIdentifiers() -> Set<String> {
+        Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
     }
 
     private func topLevelSelection() -> [Int32] {
@@ -754,6 +926,7 @@ public final class AppModel: ObservableObject {
         tab = .map
         selection = []
         resetTrashUndo()
+        resetCleanup()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -764,12 +937,22 @@ public final class AppModel: ObservableObject {
         categoryStats = tree.categoryStats()
     }
 
+    /// Fills cleanup state without running the advisor; used by snapshots.
+    public func previewCleanup(suggestions: [CleanupSuggestion]) {
+        cleanupGeneration += 1
+        cleanupSuggestions = suggestions
+        cleanupSelection = Set(suggestions.filter { $0.isSelectedByDefault }.map(\.id))
+        cleanupLoading = false
+        cleanupTreeID = tree.map { ObjectIdentifier($0) }
+    }
+
     public func previewScanning(path: String, progress: ScanProgress) {
         tree = nil
         phase = .scanning
         currentIndex = 0
         self.progress = progress
         resetTrashUndo()
+        resetCleanup()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -779,6 +962,7 @@ public final class AppModel: ObservableObject {
         progress = nil
         currentIndex = 0
         resetTrashUndo()
+        resetCleanup()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -814,4 +998,69 @@ private struct TrashUndoFile: Sendable {
 
 private struct TrashUndoEntry: Sendable {
     let files: [TrashUndoFile]
+}
+
+extension AppModel {
+    // MARK: - Cleanup state
+
+    public var cleanupSelectedSuggestions: [CleanupSuggestion] {
+        cleanupSuggestions.filter { cleanupSelection.contains($0.id) }
+    }
+
+    public var cleanupSelectedSize: Int64 {
+        cleanupSelectedSuggestions.reduce(Int64(0)) { $0 + $1.size }
+    }
+
+    public var cleanupSelectedCount: Int {
+        cleanupSelectedSuggestions.count
+    }
+
+    public var cleanupTotalSize: Int64 {
+        cleanupSuggestions.reduce(Int64(0)) { $0 + $1.size }
+    }
+
+    public var cleanupCanApply: Bool {
+        !cleanupSelection.isEmpty && !cleanupLoading && !fileOperationInFlight
+    }
+
+    public var cleanupHasPermanentSelection: Bool {
+        cleanupSelectedSuggestions.contains { $0.disposition == .deletePermanently }
+    }
+
+    public var cleanupConfirmationMessage: String {
+        let selected = cleanupSelectedSuggestions
+        let size = ByteFormat.string(selected.reduce(Int64(0)) { $0 + $1.size })
+        if cleanupHasPermanentSelection {
+            return "\(Plural.items(selected.count)) · \(size). Среди них есть объекты, которые удаляются безвозвратно; отменить это через ⌘Z не получится."
+        }
+        return "\(Plural.items(selected.count)) · \(size). Файлы можно вернуть из Корзины через ⌘Z."
+    }
+
+    public func toggleCleanupSelection(_ id: String) {
+        var updated = cleanupSelection
+        if !updated.insert(id).inserted {
+            updated.remove(id)
+        }
+        cleanupSelection = updated
+    }
+
+    public func selectAllSafeCleanup() {
+        var updated = cleanupSelection
+        for suggestion in cleanupSuggestions where suggestion.isSelectedByDefault {
+            updated.insert(suggestion.id)
+        }
+        cleanupSelection = updated
+    }
+
+    public func selectCleanup(_ suggestions: [CleanupSuggestion]) {
+        var updated = cleanupSelection
+        for suggestion in suggestions {
+            updated.insert(suggestion.id)
+        }
+        cleanupSelection = updated
+    }
+
+    public func clearCleanupSelection() {
+        cleanupSelection = []
+    }
 }
