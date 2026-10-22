@@ -448,6 +448,20 @@ struct CommandPaletteView: View {
             )
         }
 
+        if model.canUndoTrash {
+            items.append(
+                PaletteCommand(
+                    id: "undo-trash",
+                    title: "Отменить удаление",
+                    subtitle: "Файлы",
+                    symbol: "arrow.uturn.backward",
+                    shortcut: "⌘Z"
+                ) {
+                    model.undoLastTrash()
+                }
+            )
+        }
+
         items.append(contentsOf: [
             PaletteCommand(
                 id: "settings",

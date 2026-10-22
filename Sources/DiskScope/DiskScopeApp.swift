@@ -18,6 +18,12 @@ struct DiskScopeApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
 
+            CommandGroup(replacing: .undoRedo) {
+                Button("Отменить удаление") { model.undoLastTrash() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!model.canUndoTrash)
+            }
+
             CommandGroup(replacing: .appSettings) {
                 SettingsLink {
                     Text("Настройки…")

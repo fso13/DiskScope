@@ -123,6 +123,26 @@ public struct CategoryStat: Identifiable, Sendable {
     public var id: Int { category.rawValue }
 }
 
+/// Result of pruning subtrees from a scan tree.
+///
+/// `groups` describe exactly what was removed, so the same removal can be
+/// undone later without rescanning the disk.
+public struct ScanTreeRemoval {
+    public struct Group: Sendable {
+        /// Top-level removed node.
+        public let root: Int32
+        /// Every node newly marked as deleted by this group (root + descendants).
+        public let marked: [Int32]
+        public let bytes: Int64
+        public let files: Int
+    }
+
+    public let tree: ScanTree
+    public let bytes: Int64
+    public let files: Int
+    public let groups: [Group]
+}
+
 /// Immutable (except for pruning after deletions) scan result.
 public final class ScanTree {
     public private(set) var nodes: [ScanNode]
@@ -268,7 +288,7 @@ public final class ScanTree {
 
     /// Returns a new immutable tree with the given subtrees pruned. The current
     /// tree is not mutated, so background statistics never race with deletions.
-    public func removingSubtrees(at indices: [Int32]) -> (tree: ScanTree, bytes: Int64, files: Int) {
+    public func removingSubtrees(at indices: [Int32]) -> ScanTreeRemoval {
         let copy = ScanTree(
             nodes: nodes,
             names: names,
@@ -277,13 +297,35 @@ public final class ScanTree {
             deleted: deleted
         )
         let removed = copy.removeSubtreesInPlace(at: indices)
-        return (copy, removed.bytes, removed.files)
+        return ScanTreeRemoval(
+            tree: copy,
+            bytes: removed.bytes,
+            files: removed.files,
+            groups: removed.groups
+        )
+    }
+
+    /// Returns a new tree with the given removal groups restored. Groups must be
+    /// undone in reverse order of removal; this keeps earlier deletions intact.
+    public func restoringSubtrees(groups: [ScanTreeRemoval.Group]) -> ScanTree {
+        let copy = ScanTree(
+            nodes: nodes,
+            names: names,
+            rootPath: rootPath,
+            report: report,
+            deleted: deleted
+        )
+        copy.restoreGroupsInPlace(groups)
+        return copy
     }
 
     @discardableResult
-    private func removeSubtreesInPlace(at indices: [Int32]) -> (bytes: Int64, files: Int) {
+    private func removeSubtreesInPlace(
+        at indices: [Int32]
+    ) -> (bytes: Int64, files: Int, groups: [ScanTreeRemoval.Group]) {
         var totalBytes: Int64 = 0
         var totalFiles = 0
+        var groups: [ScanTreeRemoval.Group] = []
         for index in indices {
             guard index > 0, Int(index) < nodes.count, !deleted[Int(index)] else { continue }
             if hasDeletedAncestor(index) { continue }
@@ -291,11 +333,13 @@ public final class ScanTree {
             // The size of a container already includes its whole subtree.
             let removedBytes = nodes[Int(index)].size
             var stack = [Int32(index)]
+            var marked: [Int32] = []
             var files = 0
             while let current = stack.popLast() {
                 let i = Int(current)
                 if deleted[i] { continue }
                 deleted[i] = true
+                marked.append(current)
                 if !nodes[i].nodeKind.isContainer {
                     files += Int(nodes[i].itemCount)
                 }
@@ -312,10 +356,40 @@ public final class ScanTree {
                 nodes[Int(parent)].itemCount -= Int32(files)
                 parent = nodes[Int(parent)].parent
             }
+            groups.append(ScanTreeRemoval.Group(
+                root: index,
+                marked: marked,
+                bytes: removedBytes,
+                files: files
+            ))
             totalBytes += removedBytes
             totalFiles += files
         }
-        return (totalBytes, totalFiles)
+        return (totalBytes, totalFiles, groups)
+    }
+
+    private func restoreGroupsInPlace(_ groups: [ScanTreeRemoval.Group]) {
+        for group in groups {
+            let root = Int(group.root)
+            guard root > 0, root < nodes.count, deleted[root] else { continue }
+            deleted[root] = false
+            for index in group.marked {
+                let i = Int(index)
+                guard i > 0, i < nodes.count, deleted[i] else { continue }
+                deleted[i] = false
+            }
+
+            // The root size already excludes descendants deleted by earlier,
+            // still-pending removals, so adding it up the chain is exact.
+            let bytes = nodes[root].size
+            let items = nodes[root].itemCount
+            var parent = nodes[root].parent
+            while parent >= 0 {
+                nodes[Int(parent)].size += bytes
+                nodes[Int(parent)].itemCount += items
+                parent = nodes[Int(parent)].parent
+            }
+        }
     }
 
     private func hasDeletedAncestor(_ index: Int32) -> Bool {

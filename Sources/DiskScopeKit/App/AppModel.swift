@@ -86,6 +86,7 @@ public final class AppModel: ObservableObject {
     @Published public var showCommandPalette = false
     @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
+    @Published public private(set) var canUndoTrash = false
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
@@ -94,6 +95,8 @@ public final class AppModel: ObservableObject {
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
     private let rowLimit = 2500
+    private var trashUndoStack: [TrashUndoEntry] = []
+    private var fileOperationInFlight = false
 
     public init() {
         UserDefaults.standard.register(defaults: [
@@ -237,7 +240,7 @@ public final class AppModel: ObservableObject {
     // MARK: - Scanning
 
     public func scan(path: String) {
-        guard !isScanning else { return }
+        guard !isScanning, !fileOperationInFlight else { return }
 
         let standardized: String
         if path == "/" {
@@ -257,6 +260,7 @@ public final class AppModel: ObservableObject {
         selection = []
         categoryFilter = nil
         searchText = ""
+        resetTrashUndo()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -450,19 +454,22 @@ public final class AppModel: ObservableObject {
 
     public func confirmTrash() {
         showTrashConfirmation = false
-        guard let tree, canTrashSelection else { return }
+        guard !fileOperationInFlight, let tree, canTrashSelection else { return }
         let indices = topLevelSelection()
         guard !indices.isEmpty else { return }
         let urls = indices.map { tree.url(of: $0) }
         selection = []
+        fileOperationInFlight = true
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var trashed: [(index: Int32, url: URL)] = []
+            var trashed: [(index: Int32, original: URL, trashed: URL)] = []
             var failures: [(url: URL, message: String)] = []
             for (offset, url) in urls.enumerated() {
                 do {
-                    try FileManager.default.trashItem(at: url, resultingItemURL: nil)
-                    trashed.append((indices[offset], url))
+                    var resultingURL: NSURL?
+                    try FileManager.default.trashItem(at: url, resultingItemURL: &resultingURL)
+                    let trashedURL = (resultingURL as URL?) ?? url
+                    trashed.append((indices[offset], url, trashedURL))
                 } catch {
                     failures.append((url, error.localizedDescription))
                 }
@@ -474,7 +481,12 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    private func applyTrash(tree scanTree: ScanTree, trashed: [(index: Int32, url: URL)], failures: [(url: URL, message: String)]) {
+    private func applyTrash(
+        tree scanTree: ScanTree,
+        trashed: [(index: Int32, original: URL, trashed: URL)],
+        failures: [(url: URL, message: String)]
+    ) {
+        fileOperationInFlight = false
         guard !trashed.isEmpty else {
             if let failure = failures.first {
                 errorMessage = "Не удалось переместить «\(failure.url.lastPathComponent)» в Корзину: \(failure.message)"
@@ -482,6 +494,7 @@ public final class AppModel: ObservableObject {
             return
         }
         let removed = scanTree.removingSubtrees(at: trashed.map(\.index))
+        recordUndo(removal: removed, trashed: trashed)
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -499,12 +512,110 @@ public final class AppModel: ObservableObject {
         refreshVolumes()
         refreshDerived()
         showToast(
-            "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes))",
+            "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes)) · ⌘Z — отменить",
             symbol: "trash.fill"
         )
         if let failure = failures.first {
             errorMessage = "Часть объектов не удалось удалить. «\(failure.url.lastPathComponent)»: \(failure.message)"
         }
+    }
+
+    /// Moves the files of the last deletion back and restores their subtrees.
+    public func undoLastTrash() {
+        guard !fileOperationInFlight, let entry = trashUndoStack.popLast() else { return }
+        canUndoTrash = !trashUndoStack.isEmpty
+        fileOperationInFlight = true
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var restoredGroups: [ScanTreeRemoval.Group] = []
+            var failures: [(url: URL, message: String)] = []
+            var restoredCount = 0
+            for file in entry.files {
+                let manager = FileManager.default
+                guard manager.fileExists(atPath: file.trashedURL.path) else {
+                    failures.append((file.originalURL, "файл не найден в Корзине"))
+                    continue
+                }
+                guard !manager.fileExists(atPath: file.originalURL.path) else {
+                    failures.append((file.originalURL, "путь уже занят другим файлом"))
+                    continue
+                }
+                do {
+                    try manager.moveItem(at: file.trashedURL, to: file.originalURL)
+                    restoredGroups.append(file.group)
+                    restoredCount += 1
+                } catch {
+                    failures.append((file.originalURL, error.localizedDescription))
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.applyUndo(
+                    groups: restoredGroups,
+                    restoredCount: restoredCount,
+                    failures: failures
+                )
+            }
+        }
+    }
+
+    private func applyUndo(
+        groups: [ScanTreeRemoval.Group],
+        restoredCount: Int,
+        failures: [(url: URL, message: String)]
+    ) {
+        fileOperationInFlight = false
+        if !groups.isEmpty, let tree {
+            let restored = tree.restoringSubtrees(groups: groups)
+            self.tree = restored
+            selection = []
+            fileCount = restored.totalFiles
+            folderCount = restored.directoryCount()
+            if restored.isDeleted(currentIndex) {
+                var cursor = currentIndex
+                while cursor > 0, restored.isDeleted(cursor) {
+                    cursor = restored.node(cursor).parent
+                }
+                currentIndex = max(cursor, 0)
+            }
+            rebuildCurrentRows()
+            refreshVolumes()
+            refreshDerived()
+            let bytes = groups.reduce(Int64(0)) { $0 + $1.bytes }
+            showToast(
+                "Возвращено: \(Plural.items(restoredCount)) · \(ByteFormat.string(bytes))",
+                symbol: "arrow.uturn.backward"
+            )
+        }
+        if let failure = failures.first {
+            errorMessage = "Не удалось вернуть «\(failure.url.lastPathComponent)»: \(failure.message)"
+        }
+    }
+
+    private func recordUndo(
+        removal: ScanTreeRemoval,
+        trashed: [(index: Int32, original: URL, trashed: URL)]
+    ) {
+        var files: [TrashUndoFile] = []
+        for item in trashed {
+            guard let group = removal.groups.first(where: { $0.root == item.index }) else { continue }
+            files.append(TrashUndoFile(
+                originalURL: item.original,
+                trashedURL: item.trashed,
+                group: group
+            ))
+        }
+        guard !files.isEmpty else { return }
+        trashUndoStack.append(TrashUndoEntry(files: files))
+        if trashUndoStack.count > 10 {
+            trashUndoStack.removeFirst()
+        }
+        canUndoTrash = true
+    }
+
+    private func resetTrashUndo() {
+        trashUndoStack.removeAll()
+        canUndoTrash = false
     }
 
     private func topLevelSelection() -> [Int32] {
@@ -642,6 +753,7 @@ public final class AppModel: ObservableObject {
         progress = nil
         tab = .map
         selection = []
+        resetTrashUndo()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -657,6 +769,7 @@ public final class AppModel: ObservableObject {
         phase = .scanning
         currentIndex = 0
         self.progress = progress
+        resetTrashUndo()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -665,6 +778,7 @@ public final class AppModel: ObservableObject {
         phase = .welcome
         progress = nil
         currentIndex = 0
+        resetTrashUndo()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -690,4 +804,14 @@ public enum TreeNaming {
         }
         return name
     }
+}
+
+private struct TrashUndoFile: Sendable {
+    let originalURL: URL
+    let trashedURL: URL
+    let group: ScanTreeRemoval.Group
+}
+
+private struct TrashUndoEntry: Sendable {
+    let files: [TrashUndoFile]
 }
