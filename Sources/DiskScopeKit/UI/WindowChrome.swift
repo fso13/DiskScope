@@ -428,6 +428,19 @@ struct CommandPaletteView: View {
                     model.tab = .cleanup
                 }
             )
+            if model.collectionCount > 0 {
+                items.append(
+                    PaletteCommand(
+                        id: "collection",
+                        title: "Коллекция",
+                        subtitle: "Файлы",
+                        symbol: "tray.full",
+                        shortcut: "⌘6"
+                    ) {
+                        model.showCollection = true
+                    }
+                )
+            }
             items.append(
                 PaletteCommand(
                     id: "export-csv",

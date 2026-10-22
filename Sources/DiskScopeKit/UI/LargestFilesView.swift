@@ -118,6 +118,14 @@ struct LargestFilesView: View {
             if let first = selection.first {
                 Button("Открыть") { model.openRow(first) }
                 Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
+                let allCollected = selection.allSatisfy { model.isInCollection($0) }
+                Button(allCollected ? "Убрать из коллекции" : "В коллекцию") {
+                    if allCollected {
+                        model.removeFromCollection(Array(selection))
+                    } else {
+                        model.addToCollection(Array(selection))
+                    }
+                }
                 Divider()
                 Button("Переместить в Корзину…", role: .destructive) {
                     model.selection = selection

@@ -42,6 +42,10 @@ public struct ContentView: View {
         .sheet(isPresented: $model.showPermissionSheet) {
             PermissionSheet(samples: model.tree?.report.sampleSkippedPaths ?? [])
         }
+        .sheet(isPresented: $model.showCollection) {
+            CollectionView()
+                .environmentObject(model)
+        }
         .onAppear { model.refreshVolumes() }
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
     }
@@ -155,6 +159,16 @@ struct StatusBar: View {
                 }
             } else {
                 Text("Готово")
+            }
+            if model.collectionCount > 0 {
+                Text("·")
+                Button {
+                    model.showCollection = true
+                } label: {
+                    Text("Коллекция: \(model.collectionSummary)")
+                }
+                .buttonStyle(.plain)
+                .help("Открыть коллекцию (⌘6)")
             }
             Spacer()
             Text("Свободно \(model.freeSpaceText)")

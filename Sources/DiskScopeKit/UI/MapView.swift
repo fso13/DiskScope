@@ -71,6 +71,14 @@ struct ChildrenTable: View {
                         if let path = model.tree?.path(of: first) { model.scan(path: path) }
                     }
                 }
+                let allCollected = selection.allSatisfy { model.isInCollection($0) }
+                Button(allCollected ? "Убрать из коллекции" : "В коллекцию") {
+                    if allCollected {
+                        model.removeFromCollection(Array(selection))
+                    } else {
+                        model.addToCollection(Array(selection))
+                    }
+                }
                 Divider()
                 Button("Переместить в Корзину…", role: .destructive) {
                     model.selection = selection

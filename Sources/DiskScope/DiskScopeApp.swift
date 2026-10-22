@@ -82,6 +82,9 @@ struct DiskScopeApp: App {
                 Button("Очистка") { model.tab = .cleanup }
                     .keyboardShortcut("5", modifiers: .command)
                     .disabled(model.tree == nil)
+                Button("Коллекция") { model.showCollection = true }
+                    .keyboardShortcut("6", modifiers: .command)
+                    .disabled(model.collection.isEmpty)
                 Divider()
                 Button("Наверх") { model.goUp() }
                     .keyboardShortcut(.upArrow, modifiers: .command)

@@ -222,6 +222,16 @@ struct HeaderView: View {
             }
 
             IconActionButton(
+                symbol: "tray.full",
+                help: model.collectionCount == 0
+                    ? "Коллекция"
+                    : "Коллекция: \(model.collectionSummary)",
+                tint: model.collectionCount > 0 ? Theme.accent : .primary
+            ) {
+                model.showCollection = true
+            }
+
+            IconActionButton(
                 symbol: "trash",
                 help: "Переместить в Корзину (⌘⌫)",
                 tint: Theme.danger,

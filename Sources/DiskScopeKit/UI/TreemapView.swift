@@ -101,6 +101,11 @@ struct TreemapView: View {
             return
         }
         let kind = tree.node(node).nodeKind
+        if NSEvent.modifierFlags.contains(.command) {
+            model.toggleCollection([node])
+            previewNode = nil
+            return
+        }
         if kind.isContainer {
             previewNode = nil
             withAnimation(.easeOut(duration: 0.16)) {
@@ -292,6 +297,12 @@ struct TreemapView: View {
             Spacer(minLength: 6)
             GhostButton(title: "Finder", symbol: "magnifyingglass") {
                 model.reveal(indices: [node])
+            }
+            GhostButton(
+                title: model.isInCollection(node) ? "Убрать" : "В коллекцию",
+                symbol: "tray.full"
+            ) {
+                model.toggleCollection([node])
             }
             GhostButton(title: "В Корзину", symbol: "trash", tint: Theme.danger) {
                 model.selection = [node]
