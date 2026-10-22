@@ -180,6 +180,55 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.cleanupSelectedSize, 600)
     }
 
+    func testCollectionAcrossFoldersDedupesNestedAndClears() throws {
+        let tree = try scannedTree()
+        let model = AppModel()
+        model.loadPreview(tree: tree)
+
+        let sub = try XCTUnwrap(model.currentRows.first { $0.name == "Sub" })
+        let video = try XCTUnwrap(model.currentRows.first { $0.name == "video.mov" })
+
+        model.addToCollection([sub.id])
+        let subSize = model.collectionSize
+        XCTAssertEqual(model.collectionCount, 1)
+        XCTAssertTrue(model.canTrashCollection)
+        XCTAssertTrue(model.collectionTrashMessage.contains("⌘Z"))
+
+        model.navigate(to: sub.id)
+        let large = try XCTUnwrap(model.currentRows.first { $0.name == "large.bin" })
+        model.addToCollection([large.id])
+        XCTAssertEqual(model.collectionCount, 1, "Nested item must not duplicate its parent")
+        XCTAssertEqual(model.collectionSize, subSize)
+
+        model.goUp()
+        model.addToCollection([video.id])
+        XCTAssertEqual(model.collectionCount, 2)
+        XCTAssertEqual(model.collectionSize, subSize + video.size)
+        XCTAssertEqual(model.collectionRows.count, 2)
+        XCTAssertTrue(model.collectionRows.contains { $0.id == video.id })
+
+        model.toggleCollection([video.id])
+        XCTAssertFalse(model.isInCollection(video.id))
+        XCTAssertEqual(model.collectionCount, 1)
+
+        model.clearCollection()
+        XCTAssertFalse(model.canTrashCollection)
+
+        model.addToCollection([video.id])
+        model.loadPreview(tree: tree)
+        XCTAssertEqual(model.collectionCount, 0, "A new preview must reset the collection")
+    }
+
+    func testCollectionRejectsAggregates() throws {
+        let tree = try scannedTree()
+        let model = AppModel()
+        model.loadPreview(tree: tree)
+
+        let aggregate = try XCTUnwrap(model.currentRows.first { $0.isAggregate })
+        model.addToCollection([aggregate.id])
+        XCTAssertEqual(model.collectionCount, 0)
+    }
+
     func testSearchAndNavigationReset() throws {
         let tree = try scannedTree()
         let model = AppModel()

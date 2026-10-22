@@ -101,6 +101,9 @@ public final class AppModel: ObservableObject {
     @Published public var cleanupSelection: Set<String> = []
     @Published public private(set) var cleanupLoading = false
     @Published public var showCleanupConfirmation = false
+    @Published public private(set) var collection: Set<Int32> = []
+    @Published public var showCollection = false
+    @Published public var showCollectionTrashConfirmation = false
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
@@ -278,6 +281,7 @@ public final class AppModel: ObservableObject {
         searchText = ""
         resetTrashUndo()
         resetCleanup()
+        resetCollection()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -474,9 +478,19 @@ public final class AppModel: ObservableObject {
 
     public func confirmTrash() {
         showTrashConfirmation = false
-        guard !fileOperationInFlight, let tree, canTrashSelection else { return }
-        let indices = topLevelSelection()
-        guard !indices.isEmpty else { return }
+        guard let tree, canTrashSelection else { return }
+        performTrash(indices: topLevelSelection(), tree: tree)
+    }
+
+    public func confirmCollectionTrash() {
+        showCollectionTrashConfirmation = false
+        showCollection = false
+        guard let tree, canTrashCollection else { return }
+        performTrash(indices: collection.sorted(), tree: tree)
+    }
+
+    private func performTrash(indices: [Int32], tree: ScanTree) {
+        guard !fileOperationInFlight, !indices.isEmpty else { return }
         let urls = indices.map { tree.url(of: $0) }
         selection = []
         fileOperationInFlight = true
@@ -515,6 +529,7 @@ public final class AppModel: ObservableObject {
         }
         let removed = scanTree.removingSubtrees(at: trashed.map(\.index))
         recordUndo(removal: removed, trashed: trashed)
+        collection = collection.filter { !removed.tree.isDeleted($0) }
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -571,8 +586,10 @@ public final class AppModel: ObservableObject {
             }
             DispatchQueue.main.async {
                 guard let self else { return }
+                let restoredRoots = Set(restoredGroups.map(\.root))
                 self.applyUndo(
                     groups: restoredGroups,
+                    collectionRoots: entry.collectionRoots.filter { restoredRoots.contains($0) },
                     restoredCount: restoredCount,
                     failures: failures
                 )
@@ -582,6 +599,7 @@ public final class AppModel: ObservableObject {
 
     private func applyUndo(
         groups: [ScanTreeRemoval.Group],
+        collectionRoots: [Int32],
         restoredCount: Int,
         failures: [(url: URL, message: String)]
     ) {
@@ -589,6 +607,7 @@ public final class AppModel: ObservableObject {
         if !groups.isEmpty, let tree {
             let restored = tree.restoringSubtrees(groups: groups)
             self.tree = restored
+            addToCollection(collectionRoots)
             selection = []
             fileCount = restored.totalFiles
             folderCount = restored.directoryCount()
@@ -628,7 +647,9 @@ public final class AppModel: ObservableObject {
             ))
         }
         guard !files.isEmpty else { return }
-        trashUndoStack.append(TrashUndoEntry(files: files))
+        let roots = Array(Set(files.map { $0.group.root }))
+        let collectionRoots = roots.filter { collection.contains($0) }
+        trashUndoStack.append(TrashUndoEntry(files: files, collectionRoots: collectionRoots))
         if trashUndoStack.count > 10 {
             trashUndoStack.removeFirst()
         }
@@ -746,6 +767,7 @@ public final class AppModel: ObservableObject {
 
         let removed = scanTree.removingSubtrees(at: indices)
         recordUndo(removal: removed, trashed: trashed)
+        collection = collection.filter { !removed.tree.isDeleted($0) }
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -928,6 +950,7 @@ public final class AppModel: ObservableObject {
         selection = []
         resetTrashUndo()
         resetCleanup()
+        resetCollection()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -954,6 +977,7 @@ public final class AppModel: ObservableObject {
         self.progress = progress
         resetTrashUndo()
         resetCleanup()
+        resetCollection()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -964,6 +988,7 @@ public final class AppModel: ObservableObject {
         currentIndex = 0
         resetTrashUndo()
         resetCleanup()
+        resetCollection()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -999,6 +1024,7 @@ private struct TrashUndoFile: Sendable {
 
 private struct TrashUndoEntry: Sendable {
     let files: [TrashUndoFile]
+    let collectionRoots: [Int32]
 }
 
 extension AppModel {
@@ -1126,5 +1152,102 @@ extension AppModel {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if safe.isEmpty { safe = "DiskScope" }
         return "DiskScope-\(safe).\(format.fileExtension)"
+    }
+}
+
+extension AppModel {
+    // MARK: - Collection
+
+    public var collectionCount: Int { collection.count }
+
+    public var collectionSize: Int64 {
+        guard let tree else { return 0 }
+        return collection.reduce(Int64(0)) { total, index in
+            Int(index) < tree.count ? total + tree.node(index).size : total
+        }
+    }
+
+    public var collectionSummary: String {
+        "\(Plural.items(collectionCount)) · \(ByteFormat.string(collectionSize))"
+    }
+
+    public var collectionTrashMessage: String {
+        "\(collectionSummary). Файлы можно вернуть из Корзины через ⌘Z."
+    }
+
+    public var collectionRows: [ItemRow] {
+        guard let tree else { return [] }
+        return collection.compactMap { index -> ItemRow? in
+            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { return nil }
+            return Self.makeRow(
+                tree: tree,
+                index: index,
+                parentSize: max(tree.totalSize, 1),
+                includePaths: true
+            )
+        }
+        .sorted { $0.size > $1.size }
+    }
+
+    public var canTrashCollection: Bool {
+        !collection.isEmpty && !fileOperationInFlight
+    }
+
+    public func isInCollection(_ index: Int32) -> Bool {
+        collection.contains(index)
+    }
+
+    public func addToCollection(_ indices: [Int32]) {
+        guard let tree else { return }
+        var updated = collection
+        for index in indices {
+            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
+            guard tree.node(index).nodeKind != .aggregate else { continue }
+            if updated.contains(where: { isAncestor($0, of: index, in: tree) }) { continue }
+            updated = updated.filter { !isAncestor(index, of: $0, in: tree) }
+            updated.insert(index)
+        }
+        collection = updated
+    }
+
+    public func removeFromCollection(_ indices: [Int32]) {
+        collection.subtract(indices)
+    }
+
+    public func toggleCollection(_ indices: [Int32]) {
+        guard !indices.isEmpty else { return }
+        if indices.allSatisfy({ collection.contains($0) }) {
+            removeFromCollection(indices)
+        } else {
+            addToCollection(indices)
+        }
+    }
+
+    public func clearCollection() {
+        collection = []
+    }
+
+    public func requestTrashCollection() {
+        guard canTrashCollection else { return }
+        if UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
+            showCollectionTrashConfirmation = true
+        } else {
+            confirmCollectionTrash()
+        }
+    }
+
+    private func isAncestor(_ ancestor: Int32, of node: Int32, in tree: ScanTree) -> Bool {
+        var cursor = tree.node(node).parent
+        while cursor >= 0 {
+            if cursor == ancestor { return true }
+            cursor = tree.node(cursor).parent
+        }
+        return false
+    }
+
+    func resetCollection() {
+        collection = []
+        showCollection = false
+        showCollectionTrashConfirmation = false
     }
 }
