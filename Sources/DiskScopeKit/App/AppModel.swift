@@ -20,6 +20,7 @@ public final class AppModel: ObservableObject {
         case cleanup
         case disk
         case duplicates
+        case similar
 
         public var id: String { rawValue }
 
@@ -32,6 +33,7 @@ public final class AppModel: ObservableObject {
             case .cleanup: return "Очистка"
             case .disk: return "Диск"
             case .duplicates: return "Дубликаты"
+            case .similar: return "Похожие"
             }
         }
 
@@ -44,6 +46,7 @@ public final class AppModel: ObservableObject {
             case .cleanup: return "sparkles"
             case .disk: return "internaldrive"
             case .duplicates: return "doc.on.doc"
+            case .similar: return "photo.stack"
             }
         }
     }
@@ -141,9 +144,9 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var searchTotal = 0
     @Published public private(set) var searchIndexing = false
     @Published public private(set) var searchReady = false
-    @Published public private(set) var diskOverview: DiskOverview?
-    @Published public private(set) var diskOverviewLoading = false
-    @Published public private(set) var diskOverviewError: String?
+    @Published public internal(set) var diskOverview: DiskOverview?
+    @Published public internal(set) var diskOverviewLoading = false
+    @Published public internal(set) var diskOverviewError: String?
     @Published public internal(set) var scanHistory: [ScanHistoryEntry] = []
     @Published public var showHistory = false
     @Published public internal(set) var duplicateGroups: [DuplicateGroup] = []
@@ -154,12 +157,17 @@ public final class AppModel: ObservableObject {
     @Published public var duplicateMinimumSize: Int64 = 1_000_000 {
         didSet { resetDuplicates() }
     }
+    @Published public var similarOptions = SimilarImageOptions() {
+        didSet { resetSimilar() }
+    }
+    @Published public internal(set) var similarState = SimilarImageState()
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     private var cancellation: ScanCancellation?
     var duplicateCancellation: ScanCancellation?
+    var similarCancellation: ScanCancellation?
     private var activeScanID = UUID()
     private let scanQueue = DispatchQueue(label: "ru.diskscope.scan", qos: .userInitiated)
     private var toastWorkItem: DispatchWorkItem?
@@ -184,71 +192,6 @@ public final class AppModel: ObservableObject {
     }
 
     // MARK: - Derived state
-
-    public var currentName: String {
-        guard let tree else { return "" }
-        if currentIndex == 0 { return rootDisplayName }
-        let name = tree.name(of: currentIndex)
-        return name.isEmpty ? rootDisplayName : name
-    }
-
-    public var breadcrumbs: [Int32] {
-        guard let tree else { return [] }
-        var chain: [Int32] = []
-        var cursor = currentIndex
-        while cursor >= 0, chain.count < 256 {
-            chain.append(cursor)
-            let parent = tree.node(cursor).parent
-            if parent < 0 { break }
-            cursor = parent
-        }
-        return chain.reversed()
-    }
-
-    public var canGoUp: Bool {
-        guard let tree else { return false }
-        return tree.node(currentIndex).parent >= 0
-    }
-
-    public var currentSize: Int64 {
-        tree?.node(currentIndex).size ?? 0
-    }
-
-    public var currentItemCount: Int {
-        Int(tree?.node(currentIndex).itemCount ?? 0)
-    }
-
-    public var currentDirectCount: Int {
-        guard let tree, Int(currentIndex) < tree.count else { return 0 }
-        return Int(tree.node(currentIndex).childrenCount)
-    }
-
-    public var currentPath: String {
-        tree?.path(of: currentIndex) ?? ""
-    }
-
-    public var selectedSize: Int64 {
-        guard let tree else { return 0 }
-        return selection.reduce(Int64(0)) { $0 + tree.node($1).size }
-    }
-
-    public var selectedCount: Int { selection.count }
-
-    public var canTrashSelection: Bool {
-        guard let tree, !selection.isEmpty else { return false }
-        return selection.allSatisfy { index in
-            index > 0 && !tree.isDeleted(index) && tree.node(index).nodeKind != .aggregate
-        }
-    }
-
-    public var canRevealSelection: Bool {
-        guard let tree, !selection.isEmpty else { return false }
-        return selection.contains { !tree.isDeleted($0) }
-    }
-
-    public var hasPermissionIssues: Bool {
-        (tree?.report.skippedItems ?? 0) > 0
-    }
 
     public var filteredLargestRows: [ItemRow] {
         var rows = largestItems
@@ -298,6 +241,7 @@ public final class AppModel: ObservableObject {
         resetCollection()
         resetSearch()
         resetDuplicates()
+        resetSimilar()
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
@@ -544,6 +488,7 @@ public final class AppModel: ObservableObject {
         recordUndo(removal: removed, trashed: trashed)
         collection = collection.filter { !removed.tree.isDeleted($0) }
         resetDuplicates()
+        resetSimilar()
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -622,6 +567,7 @@ public final class AppModel: ObservableObject {
             let restored = tree.restoringSubtrees(groups: groups)
             self.tree = restored
             resetDuplicates()
+            resetSimilar()
             addToCollection(collectionRoots)
             selection = []
             fileCount = restored.totalFiles
@@ -784,6 +730,7 @@ public final class AppModel: ObservableObject {
         recordUndo(removal: removed, trashed: trashed)
         collection = collection.filter { !removed.tree.isDeleted($0) }
         resetDuplicates()
+        resetSimilar()
         fileCount = removed.tree.totalFiles
         folderCount = removed.tree.directoryCount()
         tree = removed.tree
@@ -947,6 +894,7 @@ public final class AppModel: ObservableObject {
         resetCollection()
         resetSearch()
         resetDuplicates()
+        resetSimilar()
         fileCount = tree.totalFiles
         folderCount = tree.directoryCount()
         volumes = VolumeInfo.loadAll()
@@ -964,6 +912,15 @@ public final class AppModel: ObservableObject {
         cleanupSelection = Set(suggestions.filter { $0.isSelectedByDefault }.map(\.id))
         cleanupLoading = false
         cleanupTreeID = tree.map { ObjectIdentifier($0) }
+    }
+
+    /// Fills similar-image groups without running Vision; used by snapshots.
+    public func previewSimilar(_ groups: [SimilarImageGroup]) {
+        similarState = SimilarImageState()
+        similarState.groups = groups
+        similarState.candidateCount = groups.reduce(0) { $0 + $1.images.count }
+        similarState.scannedCount = similarState.candidateCount
+        similarState.progress = 1
     }
 
     /// Fills duplicate groups without hashing files; used by snapshots.
@@ -992,6 +949,7 @@ public final class AppModel: ObservableObject {
         resetCollection()
         resetSearch()
         resetDuplicates()
+        resetSimilar()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -1005,6 +963,7 @@ public final class AppModel: ObservableObject {
         resetCollection()
         resetSearch()
         resetDuplicates()
+        resetSimilar()
         volumes = VolumeInfo.loadAll()
     }
 
@@ -1496,43 +1455,6 @@ extension AppModel {
 }
 
 extension AppModel {
-    // MARK: - Disk overview
-
-    public func refreshDiskOverview(force: Bool = false) {
-        guard !diskOverviewLoading else { return }
-        if !force, let diskOverview, Date().timeIntervalSince(diskOverview.updatedAt) < 60 {
-            return
-        }
-        guard let volume = internalVolume else {
-            diskOverviewError = "Не удалось определить внутренний диск"
-            return
-        }
-        diskOverviewLoading = true
-        diskOverviewError = nil
-        let trashURL = DiskOverviewService.defaultTrashURL
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let overview = DiskOverviewService.load(volume: volume, trashURL: trashURL)
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.diskOverview = overview
-                self.diskOverviewLoading = false
-            }
-        }
-    }
-
-    public func showDiskOverview() {
-        tab = .disk
-        refreshDiskOverview(force: true)
-    }
-
-    public func openTrash() {
-        let url = diskOverview?.trash.url ?? DiskOverviewService.defaultTrashURL
-        NSWorkspace.shared.open(url)
-    }
-}
-
-extension AppModel {
     public var freeSpaceText: String {
         guard let volume = internalVolume else { return "—" }
         return ByteFormat.string(volume.freeBytes)
@@ -1544,6 +1466,71 @@ extension AppModel {
 }
 
 extension AppModel {
+    public var currentName: String {
+        guard let tree else { return "" }
+        if currentIndex == 0 { return rootDisplayName }
+        let name = tree.name(of: currentIndex)
+        return name.isEmpty ? rootDisplayName : name
+    }
+
+    public var breadcrumbs: [Int32] {
+        guard let tree else { return [] }
+        var chain: [Int32] = []
+        var cursor = currentIndex
+        while cursor >= 0, chain.count < 256 {
+            chain.append(cursor)
+            let parent = tree.node(cursor).parent
+            if parent < 0 { break }
+            cursor = parent
+        }
+        return chain.reversed()
+    }
+
+    public var canGoUp: Bool {
+        guard let tree else { return false }
+        return tree.node(currentIndex).parent >= 0
+    }
+
+    public var currentSize: Int64 {
+        tree?.node(currentIndex).size ?? 0
+    }
+
+    public var currentItemCount: Int {
+        Int(tree?.node(currentIndex).itemCount ?? 0)
+    }
+
+    public var currentDirectCount: Int {
+        guard let tree, Int(currentIndex) < tree.count else { return 0 }
+        return Int(tree.node(currentIndex).childrenCount)
+    }
+
+    public var currentPath: String {
+        tree?.path(of: currentIndex) ?? ""
+    }
+
+    public var selectedSize: Int64 {
+        guard let tree else { return 0 }
+        return selection.reduce(Int64(0)) { $0 + tree.node($1).size }
+    }
+
+    public var selectedCount: Int { selection.count }
+
+    public var canTrashSelection: Bool {
+        guard let tree, !selection.isEmpty else { return false }
+        return selection.allSatisfy { index in
+            index > 0 && !tree.isDeleted(index) && tree.node(index).nodeKind != .aggregate
+        }
+    }
+
+    public var canRevealSelection: Bool {
+        guard let tree, !selection.isEmpty else { return false }
+        return selection.contains { !tree.isDeleted($0) }
+    }
+
+    public var hasPermissionIssues: Bool {
+        (tree?.report.skippedItems ?? 0) > 0
+    }
+
     public var isScanning: Bool { phase == .scanning }
 
     public var volume: VolumeInfo? {

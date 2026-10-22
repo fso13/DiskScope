@@ -461,6 +461,17 @@ struct CommandPaletteView: View {
                     model.tab = .duplicates
                 }
             )
+            items.append(
+                PaletteCommand(
+                    id: "similar",
+                    title: "Похожие изображения",
+                    subtitle: "Поиск",
+                    symbol: "photo.stack",
+                    shortcut: "⌘0"
+                ) {
+                    model.tab = .similar
+                }
+            )
             if model.collectionCount > 0 {
                 items.append(
                     PaletteCommand(

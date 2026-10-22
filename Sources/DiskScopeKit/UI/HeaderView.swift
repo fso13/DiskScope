@@ -40,7 +40,8 @@ struct HeaderView: View {
     }
 
     private var showsFileChrome: Bool {
-        model.tab != .media && model.tab != .cleanup && model.tab != .disk && model.tab != .duplicates
+        model.tab != .media && model.tab != .cleanup && model.tab != .disk
+            && model.tab != .duplicates && model.tab != .similar
     }
 
     // MARK: - Breadcrumbs
@@ -154,6 +155,15 @@ struct HeaderView: View {
                     .font(.system(size: 25, weight: .semibold))
                     .tracking(-0.4)
                 Text("Одинаковые файлы по содержимому — с учётом жёстких ссылок")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        } else if model.tab == .similar {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Похожие изображения")
+                    .font(.system(size: 25, weight: .semibold))
+                    .tracking(-0.4)
+                Text("Локальный Vision: признаки кадров, без сети")
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }

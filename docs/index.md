@@ -157,6 +157,13 @@ hide:
     `⌘9`: группы по размеру и SHA-256, порог, выбор копий и отправка в Корзину.
     Жёсткие ссылки исключены, содержимое не покидает Mac.
 
+-   **Похожие изображения**
+
+    ---
+
+    `⌘0`: локальный Vision, feature print и порог похожести. Превью,
+    QuickLook и те же действия с файлами.
+
 -   **Медиа-поиск**
 
     ---
@@ -238,6 +245,10 @@ Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте обр�
 <figure>
 <img src="assets/screenshots/18-duplicates-light.png" alt="Поиск дубликатов в DiskScope">
 <figcaption>Дубликаты по содержимому</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/19-similar-light.png" alt="Похожие изображения в DiskScope">
+<figcaption>Похожие изображения через Vision</figcaption>
 </figure>
 </div>
 
