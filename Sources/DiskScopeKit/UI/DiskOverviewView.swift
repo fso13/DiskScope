@@ -179,6 +179,7 @@ struct DiskOverviewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(11)
         .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: 11))
+        .accessibilityElement(children: .combine)
     }
 
     private var trashCard: some View {

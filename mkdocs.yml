@@ -60,6 +60,7 @@ nav:
   - Как пользоваться: usage.md
   - CLI: cli.md
   - Автоматизация: automation.md
+  - Доступность: accessibility.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md

@@ -120,6 +120,9 @@ struct ProgressBar: View {
             }
         }
         .frame(height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Прогресс"))
+        .accessibilityValue(Text(fraction.formatted(.percent.precision(.fractionLength(0)))))
     }
 }
 
@@ -150,6 +153,8 @@ struct SegmentedTabs: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text(LocalizedStringKey(tab.title)))
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
                 .help(hint(for: tab))
             }
         }
@@ -234,6 +239,7 @@ struct IconActionButton: View {
         .disabled(disabled)
         .onHover { hovering = $0 }
         .help(help)
+        .accessibilityLabel(Text(LocalizedStringKey(help.isEmpty ? symbol : help)))
     }
 }
 

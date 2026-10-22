@@ -9,7 +9,9 @@ struct TreemapView: View {
     @State private var hoveredID: Int?
     @State private var hoverPoint: CGPoint = .zero
     @State private var previewNode: Int32?
+    @State private var keyboardNode: Int32?
     @State private var cache = TreemapCache()
+    @FocusState private var mapFocused: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -37,6 +39,60 @@ struct TreemapView: View {
                         for cell in cells where cell.depth == 2 {
                             draw(cell: cell, in: &context, hovered: cell.id == hoveredID, compactLabel: false)
                         }
+                        if let keyboardNode,
+                           let cell = cells.first(where: { $0.node == keyboardNode && $0.node != nil }) {
+                            let path = Path(
+                                roundedRect: cell.rect.insetBy(dx: 1.5, dy: 1.5),
+                                cornerRadius: cell.depth == 1 ? 5 : 3
+                            )
+                            context.stroke(path, with: .color(Theme.accent), lineWidth: 2)
+                        }
+                    }
+                    .focusable()
+                    .focused($mapFocused)
+                    .focusEffectDisabled()
+                    .accessibilityRepresentation {
+                        VStack {
+                            ForEach(cells.filter { $0.depth == 1 && $0.node != nil }) { cell in
+                                Button {
+                                    activate(cell: cell)
+                                } label: {
+                                    Text("\(cell.name), \(ByteFormat.string(cell.size))")
+                                }
+                            }
+                        }
+                    }
+                    .onKeyPress(.leftArrow) {
+                        moveKeyboard(.left, cells: cells)
+                        return .handled
+                    }
+                    .onKeyPress(.rightArrow) {
+                        moveKeyboard(.right, cells: cells)
+                        return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        moveKeyboard(.up, cells: cells)
+                        return .handled
+                    }
+                    .onKeyPress(.downArrow) {
+                        moveKeyboard(.down, cells: cells)
+                        return .handled
+                    }
+                    .onKeyPress(.return) {
+                        if let keyboardNode { activate(node: keyboardNode) }
+                        return .handled
+                    }
+                    .onKeyPress(.space) {
+                        if let keyboardNode, tree.node(keyboardNode).nodeKind == .file {
+                            model.previewNode(keyboardNode)
+                        }
+                        return .handled
+                    }
+                    .onKeyPress(.escape) {
+                        keyboardNode = nil
+                        previewNode = nil
+                        model.selection = []
+                        return .handled
                     }
                     .onContinuousHover { phase in
                         switch phase {
@@ -50,6 +106,7 @@ struct TreemapView: View {
                     .gesture(
                         SpatialTapGesture()
                             .onEnded { value in
+                                mapFocused = true
                                 handleClick(at: value.location, cells: cells)
                             }
                     )
@@ -57,6 +114,19 @@ struct TreemapView: View {
                     if let hoveredID, let cell = cells.first(where: { $0.id == hoveredID }) {
                         tooltip(for: cell, in: size)
                             .allowsHitTesting(false)
+                    }
+
+                    if mapFocused {
+                        Text("←↑↓→ выбор · Return открыть · Space просмотр")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Theme.subtleFill, in: Capsule())
+                            .padding(8)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
                     }
                 }
 
@@ -93,9 +163,14 @@ struct TreemapView: View {
         .onChange(of: root) { _, _ in
             hoveredID = nil
             previewNode = nil
+            keyboardNode = nil
         }
         .onChange(of: tree.totalSize) { _, _ in
             if let previewNode, !isValid(node: previewNode) { self.previewNode = nil }
+            if let keyboardNode,
+               keyboardNode < 0 || Int(keyboardNode) >= tree.count || tree.isDeleted(keyboardNode) {
+                self.keyboardNode = nil
+            }
         }
     }
 
@@ -119,8 +194,11 @@ struct TreemapView: View {
     private func handleClick(at point: CGPoint, cells: [TreemapCell]) {
         guard let cell = hitTest(cells, at: point), let node = cell.node else {
             previewNode = nil
+            keyboardNode = nil
             return
         }
+        keyboardNode = node
+        mapFocused = true
         let kind = tree.node(node).nodeKind
         if NSEvent.modifierFlags.contains(.command) {
             model.toggleCollection([node])
@@ -135,6 +213,41 @@ struct TreemapView: View {
         } else if kind == .aggregate {
             return
         } else {
+            model.selection = [node]
+            withAnimation(.easeOut(duration: 0.15)) {
+                previewNode = node
+            }
+        }
+    }
+
+    private func moveKeyboard(_ direction: TreemapDirection, cells: [TreemapCell]) {
+        let current = keyboardNode ?? model.selection.first
+        guard let next = TreemapNavigation.nextNode(from: current, cells: cells, direction: direction) else {
+            return
+        }
+        keyboardNode = next
+        model.selection = [next]
+        if tree.node(next).nodeKind == .file {
+            previewNode = next
+        } else {
+            previewNode = nil
+        }
+    }
+
+    private func activate(cell: TreemapCell) {
+        guard let node = cell.node else { return }
+        keyboardNode = node
+        activate(node: node)
+    }
+
+    private func activate(node: Int32) {
+        let kind = tree.node(node).nodeKind
+        if kind.isContainer {
+            previewNode = nil
+            withAnimation(.easeOut(duration: 0.16)) {
+                model.navigate(to: node)
+            }
+        } else if kind != .aggregate {
             model.selection = [node]
             withAnimation(.easeOut(duration: 0.15)) {
                 previewNode = node
