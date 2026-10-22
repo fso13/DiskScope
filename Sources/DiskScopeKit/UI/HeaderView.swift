@@ -222,6 +222,14 @@ struct HeaderView: View {
             }
 
             IconActionButton(
+                symbol: "sidebar.right",
+                help: "Инспектор (⌥⌘I)",
+                tint: model.showInspector ? Theme.accent : .primary
+            ) {
+                model.showInspector.toggle()
+            }
+
+            IconActionButton(
                 symbol: "tray.full",
                 help: model.collectionCount == 0
                     ? "Коллекция"

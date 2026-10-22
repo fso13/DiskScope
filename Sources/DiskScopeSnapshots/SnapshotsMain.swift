@@ -205,6 +205,16 @@ final class SnapshotRenderer {
         render(model: model, named: "14-cleanup-light", dark: false)
         render(model: model, named: "15-cleanup-dark", dark: true)
 
+        model.tab = .largest
+        if let row = model.largestItems.first {
+            model.selection = [row.id]
+        }
+        model.showInspector = true
+        render(model: model, named: "16-inspector-light", dark: false)
+        render(model: model, named: "16-inspector-dark", dark: true)
+        model.showInspector = false
+        model.selection = []
+
         model.previewWelcome()
         render(model: model, named: "06-welcome", dark: false)
         render(model: model, named: "07-welcome-dark", dark: true)
