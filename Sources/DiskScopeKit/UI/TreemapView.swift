@@ -69,6 +69,27 @@ struct TreemapView: View {
             }
         }
         .clipped()
+        .contextMenu {
+            if let node = previewNode, isValid(node: node) {
+                Button("Открыть") { model.openRow(node) }
+                Button("Показать в Finder") { model.reveal(indices: [node]) }
+                Button("Быстрый просмотр") { model.previewNode(node) }
+                Button("Копировать путь") { model.copyPaths([node]) }
+                Button("Открыть в терминале") { model.openInTerminal(node) }
+                Divider()
+                Button(model.isInCollection(node) ? "Убрать из коллекции" : "В коллекцию") {
+                    model.toggleCollection([node])
+                }
+                Divider()
+                Button("В Корзину…", role: .destructive) {
+                    model.selection = [node]
+                    model.requestTrashSelection()
+                }
+            } else {
+                Button("Показать в Finder") { model.reveal(indices: [root]) }
+                Button("Сканировать эту папку") { model.scan(path: tree.path(of: root)) }
+            }
+        }
         .onChange(of: root) { _, _ in
             hoveredID = nil
             previewNode = nil

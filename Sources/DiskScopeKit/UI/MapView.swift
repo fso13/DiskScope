@@ -56,21 +56,35 @@ struct ChildrenTable: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .width(min: 82, ideal: 104, max: 130)
+            .width(
+                min: model.showInspector ? 0 : 82,
+                ideal: model.showInspector ? 0 : 104,
+                max: model.showInspector ? 0 : 130
+            )
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .scrollContentBackground(.hidden)
+        .onKeyPress(.space) {
+            model.previewSelection()
+            return .handled
+        }
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let first = selection.first {
                 let isAggregate = model.tree?.node(first).nodeKind == .aggregate
+                let isContainer = model.tree?.node(first).nodeKind.isContainer == true
                 Button("Открыть") { model.openRow(first) }
                     .disabled(isAggregate)
                 Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
-                if model.tree?.node(first).nodeKind.isContainer == true {
+                if !isContainer {
+                    Button("Быстрый просмотр") { model.previewNode(first) }
+                }
+                if isContainer {
                     Button("Сканировать эту папку") {
                         if let path = model.tree?.path(of: first) { model.scan(path: path) }
                     }
                 }
+                Button("Копировать путь") { model.copyPaths(Array(selection)) }
+                Button("Открыть в терминале") { model.openInTerminal(first) }
                 let allCollected = selection.allSatisfy { model.isInCollection($0) }
                 Button(allCollected ? "Убрать из коллекции" : "В коллекцию") {
                     if allCollected {

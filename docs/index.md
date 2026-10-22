@@ -122,6 +122,13 @@ hide:
     `⌘F` по имени или части пути, с фильтрами размера, типа, категории и даты.
     Индекс строится локально и только при первом открытии.
 
+-   **Инспектор и QuickLook**
+
+    ---
+
+    `⌥⌘I` — путь, занятый и логический размер, даты. `Пробел` — быстрый
+    просмотр; контекстные меню ведут в Finder, терминал и коллекцию.
+
 -   **Медиа-поиск**
 
     ---
@@ -191,6 +198,10 @@ Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте обр�
 <figure>
 <img src="assets/screenshots/14-cleanup-light.png" alt="Мастер очистки в DiskScope">
 <figcaption>Очистка по правилам</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/16-inspector-light.png" alt="Инспектор файла в DiskScope">
+<figcaption>Инспектор и быстрый просмотр</figcaption>
 </figure>
 </div>
 

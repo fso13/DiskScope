@@ -454,6 +454,30 @@ struct CommandPaletteView: View {
             )
             items.append(
                 PaletteCommand(
+                    id: "inspector",
+                    title: model.showInspector ? "Скрыть инспектор" : "Показать инспектор",
+                    subtitle: "Вид",
+                    symbol: "sidebar.right",
+                    shortcut: "⌥⌘I"
+                ) {
+                    model.showInspector.toggle()
+                }
+            )
+            if model.canQuickLook {
+                items.append(
+                    PaletteCommand(
+                        id: "quick-look",
+                        title: "Быстрый просмотр",
+                        subtitle: "Файлы",
+                        symbol: "eye",
+                        shortcut: "⌘Y"
+                    ) {
+                        model.previewSelection()
+                    }
+                )
+            }
+            items.append(
+                PaletteCommand(
                     id: "export-csv",
                     title: "Экспортировать отчёт: CSV",
                     subtitle: "Файл",

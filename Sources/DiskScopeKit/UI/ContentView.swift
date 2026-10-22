@@ -1,4 +1,5 @@
 import AppKit
+import QuickLook
 import SwiftUI
 
 public struct ContentView: View {
@@ -14,6 +15,9 @@ public struct ContentView: View {
                 SidebarView()
                     .frame(width: Theme.sidebarWidth)
                 main
+                if model.showInspector, model.phase == .ready {
+                    InspectorView()
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -51,6 +55,7 @@ public struct ContentView: View {
                 .environmentObject(model)
         }
         .onAppear { model.refreshVolumes() }
+        .quickLookPreview($model.quickLookURL)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
     }
 

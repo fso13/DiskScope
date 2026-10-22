@@ -252,6 +252,7 @@ private struct CategoryRowView: View {
 }
 
 private struct TopItemRow: View {
+    @EnvironmentObject private var model: AppModel
     let row: AppModel.ItemRow
     let rootName: String
     let action: () -> Void
@@ -290,6 +291,24 @@ private struct TopItemRow: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help(row.path)
+        .contextMenu {
+            Button("Открыть") { model.openRow(row.id) }
+            Button("Показать в Finder") { model.reveal(indices: [row.id]) }
+            if !row.isContainer {
+                Button("Быстрый просмотр") { model.previewNode(row.id) }
+            }
+            Button("Копировать путь") { model.copyPaths([row.id]) }
+            Button("Открыть в терминале") { model.openInTerminal(row.id) }
+            Divider()
+            Button(model.isInCollection(row.id) ? "Убрать из коллекции" : "В коллекцию") {
+                model.toggleCollection([row.id])
+            }
+            Divider()
+            Button("В Корзину…", role: .destructive) {
+                model.selection = [row.id]
+                model.requestTrashSelection()
+            }
+        }
     }
 
     private var folderLabel: String {

@@ -247,6 +247,33 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.searchReady)
     }
 
+    func testInspectorAndQuickLookTargets() throws {
+        let tree = try scannedTree()
+        let model = AppModel()
+        model.loadPreview(tree: tree)
+
+        XCTAssertEqual(model.inspectorNode, 0)
+        XCTAssertFalse(model.canQuickLook)
+
+        let video = try XCTUnwrap(model.currentRows.first { $0.name == "video.mov" })
+        let sub = try XCTUnwrap(model.currentRows.first { $0.name == "Sub" })
+
+        model.selection = [video.id]
+        XCTAssertEqual(model.inspectorNode, video.id)
+        XCTAssertTrue(model.canQuickLook)
+        model.previewSelection()
+        XCTAssertEqual(model.quickLookURL?.path, tree.url(of: video.id).path)
+
+        model.selection = [sub.id]
+        XCTAssertEqual(model.inspectorNode, sub.id)
+        XCTAssertFalse(model.canQuickLook)
+        model.previewSelection()
+        XCTAssertNil(model.quickLookURL)
+
+        model.selection = [video.id, sub.id]
+        XCTAssertNil(model.inspectorNode)
+    }
+
     func testSearchAndNavigationReset() throws {
         let tree = try scannedTree()
         let model = AppModel()

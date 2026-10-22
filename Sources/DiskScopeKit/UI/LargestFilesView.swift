@@ -110,14 +110,28 @@ struct LargestFilesView: View {
                         .lineLimit(1)
                 }
             }
-            .width(min: 82, ideal: 104, max: 130)
+            .width(
+                min: model.showInspector ? 0 : 82,
+                ideal: model.showInspector ? 0 : 104,
+                max: model.showInspector ? 0 : 130
+            )
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .scrollContentBackground(.hidden)
+        .onKeyPress(.space) {
+            model.previewSelection()
+            return .handled
+        }
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let first = selection.first {
+                let isContainer = model.tree?.node(first).nodeKind.isContainer == true
                 Button("Открыть") { model.openRow(first) }
                 Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
+                if !isContainer {
+                    Button("Быстрый просмотр") { model.previewNode(first) }
+                }
+                Button("Копировать путь") { model.copyPaths(Array(selection)) }
+                Button("Открыть в терминале") { model.openInTerminal(first) }
                 let allCollected = selection.allSatisfy { model.isInCollection($0) }
                 Button(allCollected ? "Убрать из коллекции" : "В коллекцию") {
                     if allCollected {

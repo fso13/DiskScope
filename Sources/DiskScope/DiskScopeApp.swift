@@ -72,6 +72,12 @@ struct DiskScopeApp: App {
                 Button("Найти по скану…") { model.showGlobalSearch = true }
                     .keyboardShortcut("f", modifiers: .command)
                     .disabled(model.tree == nil)
+                Button("Инспектор") { model.showInspector.toggle() }
+                    .keyboardShortcut("i", modifiers: [.command, .option])
+                    .disabled(model.tree == nil)
+                Button("Быстрый просмотр") { model.previewSelection() }
+                    .keyboardShortcut("y", modifiers: .command)
+                    .disabled(!model.canQuickLook)
                 Divider()
                 Button("Карта папки") { model.tab = .map }
                     .keyboardShortcut("1", modifiers: .command)
