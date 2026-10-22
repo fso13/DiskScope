@@ -212,6 +212,7 @@ struct SidebarView: View {
                 Spacer(minLength: 0)
                 Menu {
                     Button("Выбрать папку…") { model.chooseFolder() }
+                    Button("Полная картина диска…") { model.showDiskOverview() }
                     Button("Полный доступ к диску…") { model.openFullDiskAccessSettings() }
                     Divider()
                     Button("О программе DiskScope") {

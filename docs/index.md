@@ -129,6 +129,13 @@ hide:
     `⌥⌘I` — путь, занятый и логический размер, даты. `Пробел` — быстрый
     просмотр; контекстные меню ведут в Finder, терминал и коллекцию.
 
+-   **Полная картина диска**
+
+    ---
+
+    `⌘7`: свободно и purgeable, размер Корзины и локальные снимки APFS.
+    Только чтение — DiskScope ничего не удаляет автоматически.
+
 -   **Медиа-поиск**
 
     ---
@@ -202,6 +209,10 @@ Universal DMG для Apple Silicon и Intel, macOS 14+. Откройте обр�
 <figure>
 <img src="assets/screenshots/16-inspector-light.png" alt="Инспектор файла в DiskScope">
 <figcaption>Инспектор и быстрый просмотр</figcaption>
+</figure>
+<figure>
+<img src="assets/screenshots/17-disk-light.png" alt="Полная картина диска в DiskScope">
+<figcaption>Место, purgeable и снимки APFS</figcaption>
 </figure>
 </div>
 

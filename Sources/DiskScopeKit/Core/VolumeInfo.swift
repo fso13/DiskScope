@@ -7,10 +7,13 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
     public let path: String
     public let totalBytes: Int64
     public let freeBytes: Int64
+    /// Capacity macOS can make available by evicting purgeable data.
+    public let importantFreeBytes: Int64
     public let isInternal: Bool
     public let isRemovable: Bool
 
     public var usedBytes: Int64 { max(totalBytes - freeBytes, 0) }
+    public var purgeableBytes: Int64 { max(importantFreeBytes - freeBytes, 0) }
     public var usedFraction: Double {
         guard totalBytes > 0 else { return 0 }
         return min(1, Double(usedBytes) / Double(totalBytes))
@@ -23,6 +26,7 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
         path: String,
         totalBytes: Int64,
         freeBytes: Int64,
+        importantFreeBytes: Int64? = nil,
         isInternal: Bool,
         isRemovable: Bool
     ) {
@@ -31,6 +35,7 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
         self.path = path
         self.totalBytes = totalBytes
         self.freeBytes = freeBytes
+        self.importantFreeBytes = max(importantFreeBytes ?? freeBytes, freeBytes)
         self.isInternal = isInternal
         self.isRemovable = isRemovable
     }
@@ -40,6 +45,7 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
             .volumeNameKey,
             .volumeTotalCapacityKey,
             .volumeAvailableCapacityKey,
+            .volumeAvailableCapacityForImportantUsageKey,
             .volumeIsInternalKey,
             .volumeIsRemovableKey,
             .volumeIsBrowsableKey,
@@ -55,6 +61,7 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
             guard let values = try? url.resourceValues(forKeys: keys) else { continue }
             guard values.volumeIsBrowsable != false, values.volumeIsReadOnly != true else { continue }
             guard let total = values.volumeTotalCapacity, let free = values.volumeAvailableCapacity else { continue }
+            let important = values.volumeAvailableCapacityForImportantUsage ?? Int64(free)
             let path = url.path
             if path.hasPrefix("/System/Volumes") { continue }
             let name = values.volumeName ?? (path == "/" ? "Macintosh HD" : url.lastPathComponent)
@@ -64,6 +71,7 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
                 path: path,
                 totalBytes: Int64(total),
                 freeBytes: Int64(free),
+                importantFreeBytes: important,
                 isInternal: values.volumeIsInternal ?? false,
                 isRemovable: values.volumeIsRemovable ?? false
             ))

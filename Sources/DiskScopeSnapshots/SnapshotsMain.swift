@@ -215,6 +215,46 @@ final class SnapshotRenderer {
         model.showInspector = false
         model.selection = []
 
+        let diskVolume = VolumeInfo(
+            id: "/",
+            name: "Macintosh HD",
+            path: "/",
+            totalBytes: 494_000_000_000,
+            freeBytes: 97_000_000_000,
+            importantFreeBytes: 146_000_000_000,
+            isInternal: true,
+            isRemovable: false
+        )
+        let diskOverview = DiskOverview(
+            volume: diskVolume,
+            purgeableBytes: diskVolume.purgeableBytes,
+            trash: TrashSummary(
+                size: 4_200_000_000,
+                items: 17,
+                url: URL(fileURLWithPath: "/Users/you/.Trash", isDirectory: true)
+            ),
+            snapshots: [
+                APFSSnapshot(
+                    name: "com.apple.TimeMachine.2026-10-22-141500.local",
+                    date: Date(timeIntervalSinceNow: -0.5 * 86_400)
+                ),
+                APFSSnapshot(
+                    name: "com.apple.TimeMachine.2026-10-20-224500.local",
+                    date: Date(timeIntervalSinceNow: -2.5 * 86_400)
+                ),
+                APFSSnapshot(
+                    name: "com.apple.TimeMachine.2026-10-18-101500.local",
+                    date: Date(timeIntervalSinceNow: -4.5 * 86_400)
+                ),
+            ],
+            updatedAt: Date()
+        )
+        model.previewDiskOverview(diskOverview)
+        model.tab = .disk
+        render(model: model, named: "17-disk-light", dark: false)
+        render(model: model, named: "17-disk-dark", dark: true)
+        model.tab = .map
+
         model.previewWelcome()
         render(model: model, named: "06-welcome", dark: false)
         render(model: model, named: "07-welcome-dark", dark: true)

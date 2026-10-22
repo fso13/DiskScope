@@ -428,6 +428,17 @@ struct CommandPaletteView: View {
                     model.tab = .cleanup
                 }
             )
+            items.append(
+                PaletteCommand(
+                    id: "disk",
+                    title: "Полная картина диска",
+                    subtitle: "Диск",
+                    symbol: "internaldrive",
+                    shortcut: "⌘7"
+                ) {
+                    model.showDiskOverview()
+                }
+            )
             if model.collectionCount > 0 {
                 items.append(
                     PaletteCommand(
