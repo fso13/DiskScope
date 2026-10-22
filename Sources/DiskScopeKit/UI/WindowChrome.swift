@@ -450,6 +450,17 @@ struct CommandPaletteView: View {
                     model.showHistory = true
                 }
             )
+            items.append(
+                PaletteCommand(
+                    id: "duplicates",
+                    title: "Дубликаты файлов",
+                    subtitle: "Поиск",
+                    symbol: "doc.on.doc",
+                    shortcut: "⌘9"
+                ) {
+                    model.tab = .duplicates
+                }
+            )
             if model.collectionCount > 0 {
                 items.append(
                     PaletteCommand(
