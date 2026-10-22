@@ -104,6 +104,15 @@ UTF-8-блобе, родитель, диапазон детей, количес�
 модально через `quickLookPreview` по URL выбранного файла; папки и пакеты
 просматриваются в Finder.
 
+## Локализация
+
+Строки интерфейса — русские ключи в SwiftUI `LocalizedStringKey`; английские
+переводы лежат в `Sources/DiskScopeKit/Resources/en.lproj/Localizable.strings`
+и копируются в `DiskScope.app/Contents/Resources`. Настройка языка задаёт
+`environment(\.locale)`, а `L10n` и `Plural` используют её для модельных
+строк, единиц и длительности. Английский бандл также лежит в SwiftPM resource
+bundle, поэтому тесты проверяют переводы без запуска приложения.
+
 ## Похожие изображения
 
 `SimilarImageFinder` отбирает изображения не меньше порога, пропуская пакеты,

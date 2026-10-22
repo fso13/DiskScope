@@ -99,7 +99,7 @@ struct DuplicatesView: View {
 
     private func statPill(_ title: String, _ value: String, tint: Color = .secondary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 8.5, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
@@ -153,11 +153,12 @@ struct DuplicatesView: View {
             Image(systemName: "info.circle")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.tertiary)
-            Text(
-                "Жёсткие ссылки не считаются дубликатами: это те же блоки. "
+            Text(L10n.isEnglish
+                ? "Hard links are not duplicates: they share the same blocks. "
+                    + "By default every copy except the first is selected; uncheck the ones you want to keep."
+                : "Жёсткие ссылки не считаются дубликатами: это те же блоки. "
                     + "По умолчанию в каждой группе выбраны все копии, кроме первой; "
-                    + "снимите отметки, чтобы оставить нужные файлы."
-            )
+                    + "снимите отметки, чтобы оставить нужные файлы.")
             .font(.system(size: 9.5))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)
@@ -212,7 +213,9 @@ private struct DuplicateGroupCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(ByteFormat.string(group.size)) · \(Plural.items(group.files.count))")
                     .font(.system(size: 12, weight: .semibold))
-                Text("Потенциально освободит \(ByteFormat.string(group.wastedBytes))")
+                Text(L10n.isEnglish
+                    ? "Potentially frees \(ByteFormat.string(group.wastedBytes))"
+                    : "Потенциально освободит \(ByteFormat.string(group.wastedBytes))")
                     .font(.system(size: 9.5))
                     .foregroundStyle(.secondary)
             }
@@ -283,11 +286,13 @@ private struct DuplicateGroupCard: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text(
-                groupSelection.isEmpty
+            Text(L10n.isEnglish
+                ? (groupSelection.isEmpty
+                    ? "Nothing selected"
+                    : "Selected: \(groupSelection.count) · \(ByteFormat.string(selectedBytes))")
+                : (groupSelection.isEmpty
                     ? "Ничего не выбрано"
-                    : "Выбрано: \(groupSelection.count) · \(ByteFormat.string(selectedBytes))"
-            )
+                    : "Выбрано: \(groupSelection.count) · \(ByteFormat.string(selectedBytes))"))
             .font(.system(size: 9.5))
             .foregroundStyle(.secondary)
             Spacer()

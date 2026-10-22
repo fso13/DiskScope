@@ -93,11 +93,15 @@ struct SidebarView: View {
                         }
                     } else {
                         HStack(spacing: 4) {
-                            Text("Свободно \(ByteFormat.string(volume.freeBytes))")
+                            Text(L10n.isEnglish
+                                ? "Free \(ByteFormat.string(volume.freeBytes))"
+                                : "Свободно \(ByteFormat.string(volume.freeBytes))")
                                 .font(.system(size: 9.5, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.7))
                             Spacer(minLength: 0)
-                            Text("из \(ByteFormat.string(volume.totalBytes))")
+                            Text(L10n.isEnglish
+                                ? "of \(ByteFormat.string(volume.totalBytes))"
+                                : "из \(ByteFormat.string(volume.totalBytes))")
                                 .font(.system(size: 9.5, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.42))
                         }
@@ -206,7 +210,9 @@ struct SidebarView: View {
                 Circle()
                     .fill(model.isScanning ? Theme.warning : Theme.success)
                     .frame(width: 5, height: 5)
-                Text(model.isScanning ? "Сканирование…" : "Свободно \(model.freeSpaceText)")
+                Text(model.isScanning
+                    ? L10n.t("Сканирование…")
+                    : (L10n.isEnglish ? "Free \(model.freeSpaceText)" : "Свободно \(model.freeSpaceText)"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.55))
                 Spacer(minLength: 0)
@@ -267,11 +273,11 @@ private struct SidebarRow: View {
                 .frame(width: 23, height: 23)
 
                 VStack(alignment: .leading, spacing: 0.5) {
-                    Text(location.title)
+                    Text(LocalizedStringKey(location.title))
                         .font(.system(size: 12, weight: isActive ? .semibold : .medium))
                         .foregroundStyle(.white.opacity(isActive ? 0.98 : 0.80))
                         .lineLimit(1)
-                    Text(location.detail)
+                    Text(LocalizedStringKey(location.detail))
                         .font(.system(size: 9, weight: .regular))
                         .foregroundStyle(.white.opacity(isActive ? 0.5 : 0.3))
                         .lineLimit(1)

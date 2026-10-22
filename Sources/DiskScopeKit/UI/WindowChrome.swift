@@ -100,7 +100,7 @@ struct WindowTitleBar: View {
                 Circle()
                     .fill(statusColor)
                     .frame(width: 5, height: 5)
-                Text(statusText)
+                Text(LocalizedStringKey(statusText))
                     .font(.system(size: 10.5, weight: .medium))
             }
             .foregroundStyle(.secondary)
@@ -656,11 +656,11 @@ private struct PaletteRow: View {
                 .frame(width: 26, height: 26)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(command.title)
+                    Text(LocalizedStringKey(command.title))
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    Text(command.subtitle)
+                    Text(LocalizedStringKey(command.subtitle))
                         .font(.system(size: 9.5))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

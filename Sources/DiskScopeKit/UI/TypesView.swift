@@ -51,7 +51,7 @@ struct TypesView: View {
                     ForEach(stats) { stat in
                         HStack(spacing: 5) {
                             CategoryDot(category: stat.category, size: 6)
-                            Text(stat.category.title)
+                            Text(LocalizedStringKey(stat.category.title))
                                 .font(.system(size: 10.5, weight: .medium))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -200,7 +200,7 @@ private struct CategoryRowView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(stat.category.title)
+                    Text(LocalizedStringKey(stat.category.title))
                         .font(.system(size: 12, weight: .medium))
                     Text(countLabel)
                         .font(.system(size: 9.5))

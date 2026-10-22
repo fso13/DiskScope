@@ -96,7 +96,7 @@ struct SimilarImagesView: View {
 
     private func statPill(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 8.5, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
@@ -150,10 +150,11 @@ struct SimilarImagesView: View {
             Image(systemName: "info.circle")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.tertiary)
-            Text(
-                "Похожие — не значит идентичные: это кадры с близкими признаками. "
-                    + "Просматривайте превью перед удалением. Жёсткие ссылки и пакеты пропускаются."
-            )
+            Text(L10n.isEnglish
+                ? "Similar is not identical: these shots have close features. "
+                    + "Review previews before deleting. Hard links and packages are skipped."
+                : "Похожие — не значит идентичные: это кадры с близкими признаками. "
+                    + "Просматривайте превью перед удалением. Жёсткие ссылки и пакеты пропускаются.")
             .font(.system(size: 9.5))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)
@@ -264,11 +265,13 @@ private struct SimilarGroupCard: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text(
-                groupSelection.isEmpty
+            Text(L10n.isEnglish
+                ? (groupSelection.isEmpty
+                    ? "Nothing selected"
+                    : "Selected: \(groupSelection.count)")
+                : (groupSelection.isEmpty
                     ? "Ничего не выбрано"
-                    : "Выбрано: \(groupSelection.count)"
-            )
+                    : "Выбрано: \(groupSelection.count)"))
             .font(.system(size: 9.5))
             .foregroundStyle(.secondary)
             Spacer()

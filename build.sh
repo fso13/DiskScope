@@ -46,6 +46,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/DiskScope"
 cp "$ROOT/Support/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+if [ -d "$ROOT/Sources/DiskScopeKit/Resources/en.lproj" ]; then
+  cp -R "$ROOT/Sources/DiskScopeKit/Resources/en.lproj" "$APP/Contents/Resources/"
+fi
+RESOURCE_BUNDLE="$(dirname "$BINARY")/DiskScope_DiskScopeKit.bundle"
+if [ -d "$RESOURCE_BUNDLE" ]; then
+  cp -R "$RESOURCE_BUNDLE" "$APP/Contents/Resources/"
+fi
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"

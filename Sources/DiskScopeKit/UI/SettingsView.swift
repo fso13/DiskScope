@@ -4,6 +4,7 @@ import SwiftUI
 public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @AppStorage(AppSettingsKeys.confirmTrash) private var confirmTrash = true
+    @AppStorage(AppSettingsKeys.language) private var language = AppLanguage.system.rawValue
     @StateObject private var updater = UpdateChecker()
 
     public init() {}
@@ -14,6 +15,7 @@ public struct SettingsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 14) {
                     appearanceSection
+                    languageSection
                     scanningSection
                     updatesSection
                     aboutSection
@@ -25,6 +27,7 @@ public struct SettingsView: View {
         .frame(width: 560, height: 680)
         .background(Theme.background)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
+        .environment(\.locale, AppLanguage(rawValue: language)?.locale ?? Locale.current)
         .tint(Theme.accent)
     }
 
@@ -36,7 +39,9 @@ public struct SettingsView: View {
                 Text("DiskScope")
                     .font(.system(size: 18, weight: .semibold))
                     .tracking(-0.2)
-                Text("Настройки · \(version) · сборка \(build)")
+                Text(L10n.isEnglish
+                    ? "Settings · \(version) · build \(build)"
+                    : "Настройки · \(version) · сборка \(build)")
                     .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -57,13 +62,30 @@ public struct SettingsView: View {
         SettingsCard(title: "Внешний вид", symbol: "circle.lefthalf.filled") {
             Picker("Оформление", selection: $appearance) {
                 ForEach(AppAppearance.allCases) { option in
-                    Text(option.title).tag(option.rawValue)
+                    Text(LocalizedStringKey(option.title)).tag(option.rawValue)
                 }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
 
             Text("Применяется к главному окну и настройкам. Системная тема следует оформлению macOS.")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var languageSection: some View {
+        SettingsCard(title: "Язык", symbol: "globe") {
+            Picker("Язык интерфейса", selection: $language) {
+                ForEach(AppLanguage.allCases) { option in
+                    Text(LocalizedStringKey(option.title)).tag(option.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Text("Системный следует языку macOS. Английский включает англоязычный интерфейс и форматы.")
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -119,9 +141,9 @@ public struct SettingsView: View {
         SettingsCard(title: "Обновления", symbol: "arrow.triangle.2.circlepath") {
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(updateTitle)
+                    Text(LocalizedStringKey(updateTitle))
                         .font(.system(size: 11.5, weight: .medium))
-                    Text(updateDetail)
+                    Text(LocalizedStringKey(updateDetail))
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -178,13 +200,19 @@ public struct SettingsView: View {
     private var updateDetail: String {
         switch updater.state {
         case .idle:
-            return "Текущая версия \(version). Запрос выполняется только по кнопке."
+            return L10n.isEnglish
+                ? "Current version \(version). Checks run only when you click Check."
+                : "Текущая версия \(version). Запрос выполняется только по кнопке."
         case .checking:
-            return "Запрашиваем GitHub Releases…"
+            return L10n.t("Запрашиваем GitHub Releases…")
         case .upToDate(let current):
-            return "DiskScope \(current) — обновлений нет."
+            return L10n.isEnglish
+                ? "DiskScope \(current) is up to date."
+                : "DiskScope \(current) — обновлений нет."
         case .available:
-            return "Текущая версия \(version). Скачайте DMG и замените приложение."
+            return L10n.isEnglish
+                ? "Current version \(version). Download the DMG and replace the app."
+                : "Текущая версия \(version). Скачайте DMG и замените приложение."
         case .failed(let message):
             return message
         }
@@ -270,11 +298,14 @@ private struct SettingsCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.7)
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                Text(LocalizedStringKey(title))
+            }
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .tracking(0.7)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -293,7 +324,7 @@ private struct SettingsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)

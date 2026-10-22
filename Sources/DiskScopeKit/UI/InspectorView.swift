@@ -170,7 +170,7 @@ private struct InspectorDetails: View {
 
     private func sizeCard(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -261,7 +261,7 @@ private struct InspectorDetails: View {
 
     private func infoRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)

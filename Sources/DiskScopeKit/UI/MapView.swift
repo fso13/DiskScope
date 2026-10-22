@@ -49,7 +49,7 @@ struct ChildrenTable: View {
             TableColumn("Тип") { row in
                 HStack(spacing: 5) {
                     CategoryDot(category: row.category, size: 6)
-                    Text(typeLabel(row))
+                    Text(LocalizedStringKey(typeLabel(row)))
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

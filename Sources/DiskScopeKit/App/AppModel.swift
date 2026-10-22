@@ -186,6 +186,7 @@ public final class AppModel: ObservableObject {
         UserDefaults.standard.register(defaults: [
             AppSettingsKeys.appearance: AppAppearance.system.rawValue,
             AppSettingsKeys.confirmTrash: true,
+            AppSettingsKeys.language: AppLanguage.system.rawValue,
         ])
         scanHistory = ScanHistoryStore().load()
         media.attach(appModel: self)

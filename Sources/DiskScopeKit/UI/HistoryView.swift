@@ -214,7 +214,7 @@ struct HistoryView: View {
         isCount: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -341,13 +341,13 @@ struct HistoryView: View {
     }
 
     private func signedBytes(_ value: Int64) -> String {
-        guard value != 0 else { return "без изменений" }
+        guard value != 0 else { return L10n.isEnglish ? "no change" : "без изменений" }
         return (value > 0 ? "+" : "−") + ByteFormat.string(abs(value))
     }
 
     private func deltaText(_ delta: Int64?, isCount: Bool) -> String {
         guard let delta else { return "—" }
-        guard delta != 0 else { return "без изменений" }
+        guard delta != 0 else { return L10n.isEnglish ? "no change" : "без изменений" }
         let prefix = delta > 0 ? "+" : "−"
         let magnitude = isCount ? "\(abs(delta))" : ByteFormat.string(abs(delta))
         return prefix + magnitude
