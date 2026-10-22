@@ -9,13 +9,19 @@ let package = Package(
         .executable(name: "DiskScope", targets: ["DiskScope"]),
         .executable(name: "diskscope-cli", targets: ["DiskScopeCLI"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         .target(
             name: "DiskScopeKit",
             resources: [.process("Resources")],
             linkerSettings: [.linkedFramework("Photos")]
         ),
-        .executableTarget(name: "DiskScope", dependencies: ["DiskScopeKit"]),
+        .executableTarget(
+            name: "DiskScope",
+            dependencies: ["DiskScopeKit", .product(name: "Sparkle", package: "Sparkle")]
+        ),
         .executableTarget(name: "DiskScopeCLI", dependencies: ["DiskScopeKit"]),
         .executableTarget(name: "DiskScopeSnapshots", dependencies: ["DiskScopeKit"]),
         .testTarget(name: "DiskScopeKitTests", dependencies: ["DiskScopeKit"]),

@@ -360,3 +360,8 @@
 "По размеру" = "By size";
 "По имени" = "By name";
 "По дате" = "By date";
+
+"Проверить обновления…" = "Check for Updates…";
+
+"Обновления не настроены в этой сборке" = "Updates are not configured in this build";
+"Задайте SUPublicEDKey и SUFeedURL при сборке релиза." = "Set SUPublicEDKey and SUFeedURL when building a release.";

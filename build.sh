@@ -46,6 +46,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/DiskScope"
 cp "$ROOT/Support/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+SPARKLE_FEED_URL="${SPARKLE_FEED_URL:-https://github.com/fso13/DiskScope/releases/latest/download/appcast.xml}"
+SPARKLE_PUBLIC_KEY="${SPARKLE_PUBLIC_KEY:-__SPARKLE_PUBLIC_KEY__}"
+/usr/libexec/PlistBuddy -c "Set :SUFeedURL $SPARKLE_FEED_URL" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :SUPublicEDKey $SPARKLE_PUBLIC_KEY" "$APP/Contents/Info.plist"
 if [ -d "$ROOT/Sources/DiskScopeKit/Resources/en.lproj" ]; then
   cp -R "$ROOT/Sources/DiskScopeKit/Resources/en.lproj" "$APP/Contents/Resources/"
 fi
@@ -64,6 +68,13 @@ if [ ! -f "$ICON" ]; then
   "$ROOT/.build/make-icon" "$ICON"
 fi
 
+mkdir -p "$APP/Contents/Frameworks"
+SPARKLE_FRAMEWORK="$(dirname "$BINARY")/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK" ]; then
+  cp -R "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/"
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/DiskScope" 2>/dev/null || true
+fi
+
 ICONSET="$ROOT/.build/AppIcon.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
@@ -77,8 +88,14 @@ for spec in \
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
-echo "==> Signing (ad-hoc)"
-codesign --force --deep --sign - "$APP" >/dev/null
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+if [ "$SIGN_IDENTITY" = "-" ]; then
+  echo "==> Signing (ad-hoc)"
+  codesign --force --deep --sign - "$APP" >/dev/null
+else
+  echo "==> Signing with $SIGN_IDENTITY"
+  codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP" >/dev/null
+fi
 codesign --verify --deep --strict "$APP"
 
 lipo -info "$APP/Contents/MacOS/DiskScope"

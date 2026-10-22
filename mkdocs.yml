@@ -62,6 +62,7 @@ nav:
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
   - CI и релизы: release.md
+  - Распространение: distribution.md
   - Ограничения: limitations.md
   - Roadmap: https://github.com/fso13/DiskScope/blob/main/ROADMAP.md
 
