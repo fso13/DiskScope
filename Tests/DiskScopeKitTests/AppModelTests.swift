@@ -229,6 +229,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.collectionCount, 0)
     }
 
+    func testSearchStateResetsOnPreview() throws {
+        let tree = try scannedTree()
+        let model = AppModel()
+        model.loadPreview(tree: tree)
+
+        model.globalSearchText = "video"
+        model.showGlobalSearch = true
+        XCTAssertTrue(model.showGlobalSearch)
+
+        model.loadPreview(tree: tree)
+        XCTAssertFalse(model.showGlobalSearch)
+        XCTAssertEqual(model.globalSearchText, "")
+        XCTAssertTrue(model.searchHits.isEmpty)
+        XCTAssertEqual(model.searchTotal, 0)
+        XCTAssertFalse(model.searchIndexing)
+        XCTAssertFalse(model.searchReady)
+    }
+
     func testSearchAndNavigationReset() throws {
         let tree = try scannedTree()
         let model = AppModel()
