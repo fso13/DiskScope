@@ -103,13 +103,11 @@ public final class AppModel: ObservableObject {
     @Published public var toast: Toast?
     @Published public var errorMessage: String?
     @Published public var showCommandPalette = false
-    @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
-    @Published public private(set) var canUndoTrash = false
+    @Published public internal(set) var trash = TrashModel()
     @Published public internal(set) var cleanup = CleanupModel()
     @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
-    @Published public var showCollectionTrashConfirmation = false
     @Published public internal(set) var search = SearchModel()
     @Published public internal(set) var disk = DiskModel()
     @Published public internal(set) var history = HistoryModel()
@@ -135,8 +133,6 @@ public final class AppModel: ObservableObject {
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
     private let rowLimit = 2500
-    private var trashUndoStack: [TrashUndoEntry] = []
-    var fileOperationInFlight = false
     private var cleanupCancellable: AnyCancellable?
     private var diskCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
@@ -171,6 +167,9 @@ public final class AppModel: ObservableObject {
             self?.objectWillChange.send()
         }
         scan.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        trash.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         disk.attach { [weak self] in self?.internalVolume }
@@ -209,6 +208,21 @@ public final class AppModel: ObservableObject {
     }
 
     public var lastScanPath: String? { scan.lastScanPath }
+
+    var fileOperationInFlight: Bool {
+        get { trash.busy }
+        set { trash.busy = newValue }
+    }
+
+    public var canUndoTrash: Bool { trash.canUndo }
+    public var showTrashConfirmation: Bool {
+        get { trash.showSelectionConfirmation }
+        set { trash.showSelectionConfirmation = newValue }
+    }
+    public var showCollectionTrashConfirmation: Bool {
+        get { trash.showCollectionConfirmation }
+        set { trash.showCollectionConfirmation = newValue }
+    }
 
     // MARK: - Derived state
 
@@ -492,8 +506,7 @@ public final class AppModel: ObservableObject {
 
     /// Moves the files of the last deletion back and restores their subtrees.
     public func undoLastTrash() {
-        guard !fileOperationInFlight, let entry = trashUndoStack.popLast() else { return }
-        canUndoTrash = !trashUndoStack.isEmpty
+        guard !fileOperationInFlight, let entry = trash.popUndo() else { return }
         fileOperationInFlight = true
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -573,28 +586,16 @@ public final class AppModel: ObservableObject {
         removal: ScanTreeRemoval,
         trashed: [(index: Int32, original: URL, trashed: URL)]
     ) {
-        var files: [TrashUndoFile] = []
-        for item in trashed {
-            guard let group = removal.groups.first(where: { $0.root == item.index }) else { continue }
-            files.append(TrashUndoFile(
-                originalURL: item.original,
-                trashedURL: item.trashed,
-                group: group
-            ))
-        }
-        guard !files.isEmpty else { return }
-        let roots = Array(Set(files.map { $0.group.root }))
-        let collectionRoots = roots.filter { collection.contains($0) }
-        trashUndoStack.append(TrashUndoEntry(files: files, collectionRoots: collectionRoots))
-        if trashUndoStack.count > 10 {
-            trashUndoStack.removeFirst()
-        }
-        canUndoTrash = true
+        let roots = Array(Set(trashed.map(\.index)))
+        trash.record(
+            removal: removal,
+            trashed: trashed,
+            collectionRoots: roots.filter { collection.contains($0) }
+        )
     }
 
     private func resetTrashUndo() {
-        trashUndoStack.removeAll()
-        canUndoTrash = false
+        trash.reset()
     }
 
     // MARK: - Cleanup
@@ -882,17 +883,6 @@ public enum TreeNaming {
         }
         return name
     }
-}
-
-private struct TrashUndoFile: Sendable {
-    let originalURL: URL
-    let trashedURL: URL
-    let group: ScanTreeRemoval.Group
-}
-
-private struct TrashUndoEntry: Sendable {
-    let files: [TrashUndoFile]
-    let collectionRoots: [Int32]
 }
 
 extension AppModel {
