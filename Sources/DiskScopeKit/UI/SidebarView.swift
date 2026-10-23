@@ -219,7 +219,7 @@ struct SidebarView: View {
                 Menu {
                     Button("Выбрать папку…") { model.chooseFolder() }
                     Button("Полная картина диска…") { model.showDiskOverview() }
-                    Button("История сканов…") { model.showHistory = true }
+                    Button("История сканов…") { model.history.show = true }
                     Button("Полный доступ к диску…") { model.openFullDiskAccessSettings() }
                     Divider()
                     Button("О программе DiskScope") {

@@ -7,10 +7,10 @@ struct HistoryView: View {
     @State private var showClearConfirmation = false
 
     private var selected: ScanHistoryEntry? {
-        if let selectedID, let entry = model.scanHistory.first(where: { $0.id == selectedID }) {
+        if let selectedID, let entry = model.history.entries.first(where: { $0.id == selectedID }) {
             return entry
         }
-        return model.scanHistory.first
+        return model.history.entries.first
     }
 
     var body: some View {
@@ -18,7 +18,7 @@ struct HistoryView: View {
             header
             Rectangle().fill(Theme.border).frame(height: 1)
 
-            if model.scanHistory.isEmpty {
+            if model.history.entries.isEmpty {
                 EmptyFolderView(
                     symbol: "clock.arrow.circlepath",
                     title: "История пока пуста",
@@ -39,14 +39,14 @@ struct HistoryView: View {
         .frame(width: 840, height: 580)
         .background(Theme.background)
         .onAppear {
-            model.reloadHistory()
-            if selectedID == nil { selectedID = model.scanHistory.first?.id }
+            model.history.reload()
+            if selectedID == nil { selectedID = model.history.entries.first?.id }
         }
-        .onExitCommand { model.showHistory = false }
+        .onExitCommand { model.history.show = false }
         .alert("Очистить историю сканов?", isPresented: $showClearConfirmation) {
             Button("Отмена", role: .cancel) {}
             Button("Очистить", role: .destructive) {
-                model.clearHistory()
+                model.history.clear()
                 selectedID = nil
             }
         } message: {
@@ -68,7 +68,7 @@ struct HistoryView: View {
             }
             Spacer()
             Button {
-                model.showHistory = false
+                model.history.show = false
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
@@ -87,7 +87,7 @@ struct HistoryView: View {
     private var historyList: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 4) {
-                ForEach(model.scanHistory) { entry in
+                ForEach(model.history.entries) { entry in
                     historyRow(entry)
                 }
             }
@@ -142,14 +142,14 @@ struct HistoryView: View {
         .contextMenu {
             Button("Сканировать снова") { model.rescanHistory(entry) }
             Divider()
-            Button("Удалить запись", role: .destructive) { model.deleteHistory(entry) }
+            Button("Удалить запись", role: .destructive) { model.history.delete(entry) }
         }
     }
 
     @ViewBuilder
     private var detail: some View {
         if let selected {
-            let diff = model.historyDiff(for: selected)
+            let diff = model.history.diff(for: selected)
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     detailHeader(selected, diff: diff)
@@ -317,7 +317,7 @@ struct HistoryView: View {
                 model.rescanHistory(entry)
             }
             GhostButton(title: "Удалить запись", symbol: "trash", tint: Theme.danger) {
-                model.deleteHistory(entry)
+                model.history.delete(entry)
             }
             Spacer()
         }
@@ -329,7 +329,7 @@ struct HistoryView: View {
                 .font(.system(size: 9.5))
                 .foregroundStyle(.tertiary)
             Spacer()
-            if !model.scanHistory.isEmpty {
+            if !model.history.entries.isEmpty {
                 Button("Очистить историю") { showClearConfirmation = true }
                     .buttonStyle(.plain)
                     .font(.system(size: 10, weight: .medium))

@@ -113,8 +113,7 @@ public final class AppModel: ObservableObject {
     @Published public var showCollectionTrashConfirmation = false
     @Published public internal(set) var search = SearchModel()
     @Published public internal(set) var disk = DiskModel()
-    @Published public internal(set) var scanHistory: [ScanHistoryEntry] = []
-    @Published public var showHistory = false
+    @Published public internal(set) var history = HistoryModel()
     @Published public internal(set) var duplicateGroups: [DuplicateGroup] = []
     @Published public internal(set) var duplicateTotalWasted: Int64 = 0
     @Published public internal(set) var duplicateCandidateCount = 0
@@ -158,7 +157,6 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.parallelTraversal: true,
             AppSettingsKeys.staleMonths: 12,
         ])
-        scanHistory = ScanHistoryStore().load()
         search.attach { [weak self] in self?.tree }
         searchCancellable = search.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -181,9 +179,13 @@ public final class AppModel: ObservableObject {
         diskCancellable = disk.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
+        history.attach { [weak self] in self?.tree }
+        history.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
         budget.attach(
             treeProvider: { [weak self] in self?.tree },
-            historyProvider: { [weak self] in self?.scanHistory ?? [] }
+            historyProvider: { [weak self] in self?.history.entries ?? [] }
         )
         budget.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -319,7 +321,7 @@ public final class AppModel: ObservableObject {
         refreshVolumes()
         rebuildCurrentRows()
         refreshDerived()
-        recordScanHistory(result)
+        history.record(result)
         notifyExceededBudgets(result)
     }
 

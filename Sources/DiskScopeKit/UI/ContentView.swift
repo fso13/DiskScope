@@ -55,7 +55,7 @@ public struct ContentView: View {
             GlobalSearchView(search: model.search)
                 .environmentObject(model)
         }
-        .sheet(isPresented: $model.showHistory) {
+        .sheet(isPresented: $model.history.show) {
             HistoryView()
                 .environmentObject(model)
         }
