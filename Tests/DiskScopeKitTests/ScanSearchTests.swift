@@ -142,6 +142,19 @@ final class ScanSearchTests: XCTestCase {
         XCTAssertEqual(older.hits.map(\.name), ["old.bin"])
     }
 
+    func testOlderThanMonthsCombinesWithSizeAndCategory() throws {
+        let index = try index()
+        for range in [SearchDateRange.older6, .older12, .older24] {
+            let hits = search(
+                "old", in: index,
+                minimumSize: 2_000_000, category: .other,
+                kind: .files, dateRange: range
+            )
+            XCTAssertEqual(hits.hits.map(\.name), ["old.bin"], "\(range)")
+        }
+        XCTAssertTrue(search("recent", in: index, dateRange: .older6).hits.isEmpty)
+    }
+
     func testSortingAndLimit() throws {
         let index = try index()
 

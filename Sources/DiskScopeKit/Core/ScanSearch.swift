@@ -23,6 +23,9 @@ public enum SearchDateRange: String, CaseIterable, Identifiable, Sendable {
     case month
     case year
     case older
+    case older6
+    case older12
+    case older24
 
     public var id: String { rawValue }
 
@@ -32,6 +35,9 @@ public enum SearchDateRange: String, CaseIterable, Identifiable, Sendable {
         case .month: return "За месяц"
         case .year: return "За год"
         case .older: return "Старше года"
+        case .older6: return "Старше 6 месяцев"
+        case .older12: return "Старше 12 месяцев"
+        case .older24: return "Старше 24 месяцев"
         }
     }
 }
@@ -201,6 +207,9 @@ public final class ScanSearchIndex: @unchecked Sendable {
             case .month: guard age <= 30 else { return false }
             case .year: guard age <= 365 else { return false }
             case .older: guard age > 365 else { return false }
+            case .older6: guard age > 180 else { return false }
+            case .older12: guard age > 365 else { return false }
+            case .older24: guard age > 730 else { return false }
             }
         }
         return true

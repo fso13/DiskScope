@@ -7,6 +7,7 @@ public enum AppSettingsKeys {
     public static let menuBarMonitor = "app.settings.menuBarMonitor"
     public static let menuBarDisplay = "app.settings.menuBarDisplay"
     public static let parallelTraversal = "app.settings.parallelTraversal"
+    public static let staleMonths = "app.settings.staleMonths"
 }
 
 public extension Notification.Name {
