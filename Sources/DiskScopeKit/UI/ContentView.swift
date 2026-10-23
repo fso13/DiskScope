@@ -59,15 +59,15 @@ public struct ContentView: View {
             HistoryView()
                 .environmentObject(model)
         }
-        .onAppear { model.refreshVolumes() }
+        .onAppear { model.browser.refreshVolumes() }
         .quickLookPreview($model.inspector.quickLookURL)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
         .environment(\.locale, AppLanguage(rawValue: language)?.locale ?? Locale.current)
     }
 
     private var trashMessage: String {
-        let count = model.selectedCount
-        let size = ByteFormat.string(model.selectedSize)
+        let count = model.browser.selectedCount
+        let size = ByteFormat.string(model.browser.selectedSize)
         return "\(Plural.items(count)) · \(size). Объекты можно восстановить из Корзины."
     }
 
@@ -122,11 +122,11 @@ struct ReadyView: View {
         VStack(spacing: 0) {
             HeaderView()
 
-            if model.hasPermissionIssues && model.tab != .media {
+            if model.browser.hasPermissionIssues && model.tab != .media {
                 PermissionBanner(
                     count: model.tree?.report.skippedItems ?? 0,
                     onDetails: { model.showPermissionSheet = true },
-                    onSettings: { model.openFullDiskAccessSettings() }
+                    onSettings: { model.browser.openFullDiskAccessSettings() }
                 )
                 .padding(.horizontal, 20)
                 .padding(.bottom, 10)
@@ -173,7 +173,7 @@ struct StatusBar: View {
                 .fill(Theme.success)
                 .frame(width: 5, height: 5)
             if let tree = model.tree {
-                Text("\(L10n.t(model.rootDisplayName)) · \(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles))")
+                Text("\(L10n.t(model.browser.rootDisplayName)) · \(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles))")
                 Text("·")
                 Text(L10n.isEnglish
                     ? "scanned in \(ByteFormat.duration(tree.report.duration))"
@@ -199,7 +199,7 @@ struct StatusBar: View {
                 .help("Открыть коллекцию (⌘6)")
             }
             Spacer()
-            Text(L10n.isEnglish ? "Free \(model.freeSpaceText)" : "Свободно \(model.freeSpaceText)")
+            Text(L10n.isEnglish ? "Free \(model.browser.freeSpaceText)" : "Свободно \(model.browser.freeSpaceText)")
         }
         .font(.system(size: 10, weight: .medium))
         .foregroundStyle(.secondary)
@@ -310,7 +310,7 @@ struct PermissionSheet: View {
                 GhostButton(title: "Закрыть", action: { dismiss() })
                 Spacer()
                 AccentButton(title: "Открыть настройки", symbol: "gearshape.fill") {
-                    model.openFullDiskAccessSettings()
+                    model.browser.openFullDiskAccessSettings()
                     dismiss()
                 }
             }

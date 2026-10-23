@@ -76,6 +76,7 @@ public final class AppModel: ObservableObject {
 
     @Published public internal(set) var scan: ScanController
     @Published public internal(set) var nav = NavigationModel()
+    @Published public internal(set) var browser = BrowserModel()
     @Published public var tab: Tab = .map {
         didSet {
             if tab == .cleanup {
@@ -139,7 +140,7 @@ public final class AppModel: ObservableObject {
             environmentProvider: { [weak self] in
                 guard let self else { return .current() }
                 return CleanupEnvironment(
-                    homePath: self.homePath,
+                    homePath: self.browser.homePath,
                     runningBundleIdentifiers: self.runningBundleIdentifiers()
                 )
             },
@@ -163,6 +164,10 @@ public final class AppModel: ObservableObject {
         nav.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
+        browser.attach(appModel: self)
+        browser.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
         inspector.attach(
             treeProvider: { [weak self] in self?.tree },
             currentIndexProvider: { [weak self] in self?.currentIndex ?? 0 },
@@ -178,8 +183,8 @@ public final class AppModel: ObservableObject {
             currentIndexProvider: { [weak self] in self?.currentIndex ?? 0 },
             searchProvider: { [weak self] in self?.searchText ?? "" },
             categoryProvider: { [weak self] in self?.categoryFilter },
-            currentNameProvider: { [weak self] in self?.currentName ?? "" },
-            rootDisplayNameProvider: { [weak self] in self?.rootDisplayName ?? "DiskScope" },
+            currentNameProvider: { [weak self] in self?.browser.currentName ?? "" },
+            rootDisplayNameProvider: { [weak self] in self?.browser.rootDisplayName ?? "DiskScope" },
             toast: { [weak self] text, symbol in self?.showToast(text, symbol: symbol) },
             error: { [weak self] message in self?.errorMessage = message }
         )
@@ -197,7 +202,7 @@ public final class AppModel: ObservableObject {
         cleanupOperations.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
-        disk.attach { [weak self] in self?.internalVolume }
+        disk.attach { [weak self] in self?.browser.internalVolume }
         diskCancellable = disk.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -313,13 +318,6 @@ public final class AppModel: ObservableObject {
         report.exportReport(format: format, scope: scope)
     }
 
-    // MARK: - Derived state
-
-    public var scanSummary: String {
-        guard let tree else { return "" }
-        return "\(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles)) · \(Plural.folders(folderCount))"
-    }
-
     // MARK: - Scanning
 
     public func scan(path: String) {
@@ -367,7 +365,7 @@ public final class AppModel: ObservableObject {
         } else if let lastScanPath {
             scan(path: lastScanPath)
         } else {
-            scan(path: homePath)
+            scan(path: browser.homePath)
         }
     }
 
@@ -384,7 +382,7 @@ public final class AppModel: ObservableObject {
         tab = .map
         fileCount = result.totalFiles
         folderCount = result.directoryCount()
-        refreshVolumes()
+        browser.refreshVolumes()
         nav.rebuild()
         stats.refresh()
         history.record(result)
@@ -413,49 +411,6 @@ public final class AppModel: ObservableObject {
 
     public func goToRoot() {
         nav.navigate(to: 0)
-    }
-
-    public func activateRow(_ index: Int32) {
-        guard let tree, index >= 0, Int(index) < tree.count else { return }
-        guard tree.node(index).nodeKind != .aggregate else { return }
-        if tree.node(index).nodeKind == .directory {
-            navigate(to: index)
-        } else {
-            reveal(indices: [index])
-        }
-    }
-
-    public func openRow(_ index: Int32) {
-        guard let tree, index >= 0, Int(index) < tree.count else { return }
-        let node = tree.node(index)
-        guard node.nodeKind != .aggregate else { return }
-        if node.nodeKind.isContainer {
-            navigate(to: index)
-        } else {
-            let url = tree.url(of: index)
-            if !NSWorkspace.shared.open(url) {
-                errorMessage = "Не удалось открыть «\(tree.name(of: index))»"
-            }
-        }
-    }
-
-    public func reveal(indices: [Int32]) {
-        guard let tree else { return }
-        let urls = indices.compactMap { index -> URL? in
-            guard index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return nil }
-            return tree.url(of: index)
-        }
-        guard !urls.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting(urls)
-    }
-
-    public func revealSelection() {
-        reveal(indices: Array(selection))
-    }
-
-    public func revealCurrentFolder() {
-        guard let tree else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([tree.url(of: currentIndex)])
     }
 
     // MARK: - Trash
@@ -492,18 +447,6 @@ public final class AppModel: ObservableObject {
 
     public func clearCategoryFilter() {
         nav.clearCategoryFilter()
-    }
-
-    // MARK: - Permissions
-
-    public func openFullDiskAccessSettings() {
-        let candidates = [
-            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AllFiles",
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
-        ]
-        for candidate in candidates {
-            if let url = URL(string: candidate), NSWorkspace.shared.open(url) { return }
-        }
     }
 
     // MARK: - UI helpers
@@ -550,111 +493,5 @@ extension AppModel {
 }
 
 extension AppModel {
-    public var freeSpaceText: String {
-        guard let volume = internalVolume else { return "—" }
-        return ByteFormat.string(volume.freeBytes)
-    }
-
-    public func refreshVolumes() {
-        volumes = VolumeInfo.loadAll()
-    }
-}
-
-extension AppModel {
-    public var currentName: String {
-        guard let tree else { return "" }
-        if currentIndex == 0 { return rootDisplayName }
-        let name = tree.name(of: currentIndex)
-        return name.isEmpty ? rootDisplayName : name
-    }
-
-    public var breadcrumbs: [Int32] {
-        guard let tree else { return [] }
-        var chain: [Int32] = []
-        var cursor = currentIndex
-        while cursor >= 0, chain.count < 256 {
-            chain.append(cursor)
-            let parent = tree.node(cursor).parent
-            if parent < 0 { break }
-            cursor = parent
-        }
-        return chain.reversed()
-    }
-
-    public var canGoUp: Bool {
-        guard let tree else { return false }
-        return tree.node(currentIndex).parent >= 0
-    }
-
-    public var currentSize: Int64 {
-        tree?.node(currentIndex).size ?? 0
-    }
-
-    public var currentItemCount: Int {
-        Int(tree?.node(currentIndex).itemCount ?? 0)
-    }
-
-    public var currentDirectCount: Int {
-        guard let tree, Int(currentIndex) < tree.count else { return 0 }
-        return Int(tree.node(currentIndex).childrenCount)
-    }
-
-    public var currentPath: String {
-        tree?.path(of: currentIndex) ?? ""
-    }
-
-    public var selectedSize: Int64 {
-        guard let tree else { return 0 }
-        return selection.reduce(Int64(0)) { $0 + tree.node($1).size }
-    }
-
-    public var selectedCount: Int { selection.count }
-
-    public var canRevealSelection: Bool {
-        guard let tree, !selection.isEmpty else { return false }
-        return selection.contains { !tree.isDeleted($0) }
-    }
-
-    public var hasPermissionIssues: Bool {
-        (tree?.report.skippedItems ?? 0) > 0
-    }
-
     public var isScanning: Bool { phase == .scanning }
-
-    public var volume: VolumeInfo? {
-        volumes.first(where: { $0.isInternal }) ?? volumes.first
-    }
-
-    public var internalVolume: VolumeInfo? {
-        volumes.first(where: { $0.path == "/" }) ?? volumes.first
-    }
-
-    public var currentNode: ScanNode? {
-        guard let tree, currentIndex >= 0, Int(currentIndex) < tree.count else { return nil }
-        return tree.node(currentIndex)
-    }
-
-    public var homePath: String {
-        FileManager.default.homeDirectoryForCurrentUser.path
-    }
-
-    public var rootDisplayName: String {
-        guard let tree else { return "DiskScope" }
-        if tree.rootPath == "/" { return internalVolume?.name ?? "Macintosh HD" }
-        let known: [String: String] = [
-            homePath: "Домашняя папка",
-            homePath + "/Applications": "Программы",
-            "/Applications": "Программы",
-            homePath + "/Downloads": "Загрузки",
-            homePath + "/Documents": "Документы",
-            homePath + "/Desktop": "Рабочий стол",
-            homePath + "/Library": "Библиотека",
-            homePath + "/Movies": "Видео",
-            homePath + "/Music": "Музыка",
-            homePath + "/Pictures": "Изображения",
-        ]
-        if let known = known[tree.rootPath] { return known }
-        let name = URL(fileURLWithPath: tree.rootPath).lastPathComponent
-        return name.isEmpty ? tree.rootPath : name
-    }
 }

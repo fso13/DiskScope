@@ -253,7 +253,7 @@ private struct SimilarGroupCard: View {
                 .foregroundStyle(.tertiary)
 
             IconActionButton(symbol: "magnifyingglass", help: "Показать в Finder") {
-                model.reveal(indices: [image.index])
+                model.browser.reveal(indices: [image.index])
             }
             IconActionButton(symbol: "eye", help: "Быстрый просмотр") {
                 model.inspector.previewNode(image.index)

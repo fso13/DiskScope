@@ -143,8 +143,8 @@ struct TreemapView: View {
         .clipped()
         .contextMenu {
             if let node = previewNode, isValid(node: node) {
-                Button("Открыть") { model.openRow(node) }
-                Button("Показать в Finder") { model.reveal(indices: [node]) }
+                Button("Открыть") { model.browser.openRow(node) }
+                Button("Показать в Finder") { model.browser.reveal(indices: [node]) }
                 Button("Быстрый просмотр") { model.inspector.previewNode(node) }
                 Button("Копировать путь") { model.inspector.copyPaths([node]) }
                 Button("Открыть в терминале") { model.inspector.openInTerminal(node) }
@@ -158,7 +158,7 @@ struct TreemapView: View {
                     model.trashOperations.requestSelection()
                 }
             } else {
-                Button("Показать в Finder") { model.reveal(indices: [root]) }
+                Button("Показать в Finder") { model.browser.reveal(indices: [root]) }
                 Button("Сканировать эту папку") { model.scan(path: tree.path(of: root)) }
             }
         }
@@ -455,7 +455,7 @@ struct TreemapView: View {
             }
             Spacer(minLength: 6)
             GhostButton(title: "Finder", symbol: "magnifyingglass") {
-                model.reveal(indices: [node])
+                model.browser.reveal(indices: [node])
             }
             GhostButton(
                 title: model.isInCollection(node) ? "Убрать" : "В коллекцию",

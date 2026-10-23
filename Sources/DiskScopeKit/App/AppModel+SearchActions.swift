@@ -4,7 +4,7 @@ import Foundation
 extension AppModel {
     public func revealSearchHit(_ hit: SearchHit) {
         search.show = false
-        reveal(indices: [hit.index])
+        browser.reveal(indices: [hit.index])
     }
 
     public func navigateToSearchHit(_ hit: SearchHit) {
@@ -17,7 +17,7 @@ extension AppModel {
             if node.parent >= 0 {
                 navigate(to: node.parent)
             }
-            reveal(indices: [hit.index])
+            browser.reveal(indices: [hit.index])
         }
     }
 

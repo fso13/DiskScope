@@ -1,6 +1,6 @@
 # Roadmap
 
-**Цикл:** 3.0 · **Релиз:** 2.0.0 · **Обновлено:** 23 октября 2026
+**Цикл:** 3.0 · **Релиз:** 2.0.0 · **Обновлено:** 24 октября 2026
 
 **Задачи:** [issues](https://github.com/fso13/DiskScope/issues) · **Этапы:** [milestones](https://github.com/fso13/DiskScope/milestones) · **Новые:** [#57–#72](https://github.com/fso13/DiskScope/issues?q=is%3Aissue+is%3Aopen)
 
@@ -23,7 +23,7 @@
 | 2.0 — Платформа | 6/6: локализация, notarization/Sparkle/Homebrew, CLI, App Intents, доступность, меню-бар |
 | Backlog | 5/5: кэш, параллельный скан, бюджеты, старые файлы, APFS-клоны |
 
-Текущая база: **161 XCTest**, 17,9 тыс. строк исходников, 398 ключей
+Текущая база: **165 XCTest**, 17,9 тыс. строк исходников, 398 ключей
 локализации, `main` зелёный.
 
 ## Принципы
@@ -39,7 +39,7 @@
 
 | Область | Симптом | Риск |
 | --- | --- | --- |
-| `AppModel` | 1561 строка, 8 вкладок, cleanup/search/disk/history в одном типе | любая фича замедляет сборку и тесты |
+| `AppModel` | 497 строк; состояние разложено на feature-модели, координатор остался тонким | дальнейшие фичи не раздувают центр |
 | `DiskScanner` | 1009 строк: bulk/readdir, парсинг, сессия и TreeBuilder вместе | сложно менять под APFS/параллельность |
 | Кэш | хранит всё дерево, один корень, FSEvents-тесты со `sleep` | хрупкость и большой файл |
 | CI | Dependency review падает, нет coverage/benchmark/release smoke | регрессии ловятся поздно |
@@ -93,7 +93,7 @@ F9 стартует как research, а не как обещание.
 
 | ID | Задача | Приоритет | Оценка | Когда |
 | --- | --- | --- | --- | --- |
-| [T1](https://github.com/fso13/DiskScope/issues/66) | **Разложить `AppModel`** на feature-модели (`CleanupStore`, `SearchStore`, `DiskStore`, `BudgetStore`) с инъекцией зависимостей | P1 | L (6 д) | до F1 |
+| [T1](https://github.com/fso13/DiskScope/issues/66) | **Разложить `AppModel`** на feature-модели с инъекцией зависимостей — закрыт, 497 строк | P1 | L (6 д) | сделано |
 | [T2](https://github.com/fso13/DiskScope/issues/67) | **Разложить `DiskScanner`**: `BulkDirectoryReader`, `ReaddirReader`, `ScanSession`, `TreeBuilder`, протокол + фикстуры | P1 | L (8 д) | до F9/T3 |
 | [T3](https://github.com/fso13/DiskScope/issues/68) | **Кэш 2.0**: сжатие/TTL/версии, partial reuse, инъекция FSEvents вместо `sleep` | P1 | L (6 д) | после T2 |
 | [T4](https://github.com/fso13/DiskScope/issues/69) | **CI/release**: coverage ≥85% Core, benchmark baseline, snapshot/UI smoke, release/notarization dry-run, починить Dependency review, поднять версию | P1 | M (5 д) | сейчас |

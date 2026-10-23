@@ -96,12 +96,12 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(sub.isContainer)
         model.navigate(to: sub.id)
         XCTAssertEqual(model.currentIndex, sub.id)
-        XCTAssertEqual(model.currentName, "Sub")
-        XCTAssertTrue(model.canGoUp)
+        XCTAssertEqual(model.browser.currentName, "Sub")
+        XCTAssertTrue(model.browser.canGoUp)
 
         model.goUp()
         XCTAssertEqual(model.currentIndex, 0)
-        XCTAssertFalse(model.canGoUp)
+        XCTAssertFalse(model.browser.canGoUp)
     }
 
     func testPreviewCategoryFilterAndLargestRows() throws {

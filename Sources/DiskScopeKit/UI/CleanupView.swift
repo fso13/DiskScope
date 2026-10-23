@@ -186,7 +186,7 @@ struct CleanupView: View {
                         suggestion: suggestion,
                         isSelected: model.cleanup.selection.contains(suggestion.id),
                         onToggle: { model.cleanup.toggle(suggestion.id) },
-                        onReveal: { model.reveal(indices: [suggestion.nodeIndex]) }
+                        onReveal: { model.browser.reveal(indices: [suggestion.nodeIndex]) }
                     )
                 }
             }
@@ -259,7 +259,7 @@ struct CleanupView: View {
                         suggestion: suggestion,
                         isSelected: model.cleanup.selection.contains(suggestion.id),
                         onToggle: { model.cleanup.toggle(suggestion.id) },
-                        onReveal: { model.reveal(indices: [suggestion.nodeIndex]) }
+                        onReveal: { model.browser.reveal(indices: [suggestion.nodeIndex]) }
                     )
                 }
             }

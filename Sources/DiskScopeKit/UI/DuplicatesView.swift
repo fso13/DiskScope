@@ -270,7 +270,7 @@ private struct DuplicateGroupCard: View {
                 .foregroundStyle(.tertiary)
 
             IconActionButton(symbol: "magnifyingglass", help: "Показать в Finder") {
-                model.reveal(indices: [file.index])
+                model.browser.reveal(indices: [file.index])
             }
             IconActionButton(symbol: "eye", help: "Быстрый просмотр") {
                 model.inspector.previewNode(file.index)

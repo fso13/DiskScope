@@ -131,8 +131,8 @@ struct LargestFilesView: View {
         .contextMenu(forSelectionType: Int32.self) { selection in
             if let first = selection.first {
                 let isContainer = model.tree?.node(first).nodeKind.isContainer == true
-                Button("Открыть") { model.openRow(first) }
-                Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
+                Button("Открыть") { model.browser.openRow(first) }
+                Button("Показать в Finder") { model.browser.reveal(indices: Array(selection)) }
                 if !isContainer {
                     Button("Быстрый просмотр") { model.inspector.previewNode(first) }
                 }
@@ -154,16 +154,16 @@ struct LargestFilesView: View {
             }
         } primaryAction: { selection in
             if let first = selection.first {
-                model.activateRow(first)
+                model.browser.activateRow(first)
             }
         }
     }
 
     private func folderLabel(_ row: AppModel.ItemRow) -> String {
         let relative = row.relativePath
-        guard let slash = relative.lastIndex(of: "/") else { return model.rootDisplayName }
+        guard let slash = relative.lastIndex(of: "/") else { return model.browser.rootDisplayName }
         let folder = String(relative[..<slash])
-        return folder.isEmpty ? model.rootDisplayName : folder
+        return folder.isEmpty ? model.browser.rootDisplayName : folder
     }
 
     private var footer: some View {

@@ -137,7 +137,7 @@ struct WelcomeView: View {
     }
 
     private func abbreviate(_ path: String) -> String {
-        let home = model.homePath
+        let home = model.browser.homePath
         if path.hasPrefix(home) {
             return "~" + path.dropFirst(home.count)
         }
@@ -157,7 +157,7 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 7) {
-                    Text(model.internalVolume?.name ?? "Macintosh HD")
+                    Text(model.browser.internalVolume?.name ?? "Macintosh HD")
                         .font(.system(size: 13, weight: .semibold))
                     Text("APFS")
                         .font(.system(size: 8, weight: .bold))
@@ -167,7 +167,7 @@ struct WelcomeView: View {
                         .background(Theme.subtleFill, in: Capsule())
                 }
 
-                if let volume = model.internalVolume {
+                if let volume = model.browser.internalVolume {
                     ProgressBar(fraction: volume.usedFraction, height: 7)
                     Text(volumeSummary(volume))
                     .font(.system(size: 9.5, weight: .medium))
@@ -177,7 +177,7 @@ struct WelcomeView: View {
 
             Spacer(minLength: 10)
 
-            if let volume = model.internalVolume {
+            if let volume = model.browser.internalVolume {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(ByteFormat.percent(volume.usedBytes, of: volume.totalBytes))
                         .font(AppFont.number(21))
@@ -189,7 +189,7 @@ struct WelcomeView: View {
             }
 
             Button {
-                if let volume = model.internalVolume { model.scanVolume(volume) }
+                if let volume = model.browser.internalVolume { model.scanVolume(volume) }
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "waveform.path.ecg")
@@ -253,7 +253,7 @@ struct WelcomeView: View {
                 .foregroundStyle(.secondary)
             Spacer(minLength: 6)
             Button("Открыть настройки") {
-                model.openFullDiskAccessSettings()
+                model.browser.openFullDiskAccessSettings()
             }
             .buttonStyle(.plain)
             .font(.system(size: 10.5, weight: .semibold))

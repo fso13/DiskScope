@@ -24,7 +24,7 @@ struct CollectionView: View {
                         ForEach(rows) { row in
                             CollectionRow(
                                 row: row,
-                                onReveal: { model.reveal(indices: [row.id]) },
+                                onReveal: { model.browser.reveal(indices: [row.id]) },
                                 onRemove: { model.removeFromCollection([row.id]) }
                             )
                         }

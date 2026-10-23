@@ -551,9 +551,9 @@ struct CommandPaletteView: View {
                     shortcut: "⇧⌘R"
                 ) {
                     if model.selection.isEmpty {
-                        model.revealCurrentFolder()
+                        model.browser.revealCurrentFolder()
                     } else {
-                        model.revealSelection()
+                        model.browser.revealSelection()
                     }
                 }
             )
@@ -604,7 +604,7 @@ struct CommandPaletteView: View {
                 symbol: "lock.shield",
                 shortcut: nil
             ) {
-                model.openFullDiskAccessSettings()
+                model.browser.openFullDiskAccessSettings()
             },
             PaletteCommand(
                 id: "about",

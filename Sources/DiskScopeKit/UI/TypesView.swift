@@ -27,7 +27,7 @@ struct TypesView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Распределение по типам")
                         .font(.system(size: 12.5, weight: .semibold))
-                    Text("Внутри «\(model.rootDisplayName)»")
+                    Text("Внутри «\(model.browser.rootDisplayName)»")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                 }
@@ -125,8 +125,8 @@ struct TypesView: View {
             Rectangle().fill(Theme.border).frame(height: 1)
 
             ForEach(model.stats.largestItems.prefix(5)) { row in
-                TopItemRow(row: row, rootName: model.rootDisplayName) {
-                    model.reveal(indices: [row.id])
+                TopItemRow(row: row, rootName: model.browser.rootDisplayName) {
+                    model.browser.reveal(indices: [row.id])
                 }
             }
         }
@@ -305,8 +305,8 @@ private struct TopItemRow: View {
         .onHover { hovering = $0 }
         .help(row.path)
         .contextMenu {
-            Button("Открыть") { model.openRow(row.id) }
-            Button("Показать в Finder") { model.reveal(indices: [row.id]) }
+            Button("Открыть") { model.browser.openRow(row.id) }
+            Button("Показать в Finder") { model.browser.reveal(indices: [row.id]) }
             if !row.isContainer {
                 Button("Быстрый просмотр") { model.inspector.previewNode(row.id) }
             }
