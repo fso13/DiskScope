@@ -142,6 +142,7 @@ struct DiskScopeApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var model: AppModel? {
         didSet {
+            menuBarController?.model = model
             if let pendingScanPath, let model {
                 model.scan(path: pendingScanPath)
                 self.pendingScanPath = nil
@@ -150,15 +151,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var pendingScanPath: String?
+    private var menuBarController: MenuBarController?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        !UserDefaults.standard.bool(forKey: AppSettingsKeys.menuBarMonitor)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showMainWindow() }
+        return true
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = self
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(menuBarSettingsChanged),
+            name: .menuBarSettingsChanged,
+            object: nil
+        )
+        configureMenuBar()
+    }
+
+    @objc private func menuBarSettingsChanged() {
+        configureMenuBar()
+        menuBarController?.update()
+    }
+
+    private func configureMenuBar() {
+        let enabled = UserDefaults.standard.bool(forKey: AppSettingsKeys.menuBarMonitor)
+        if enabled {
+            if menuBarController == nil {
+                menuBarController = MenuBarController(model: model) { [weak self] in
+                    self?.showMainWindow()
+                }
+                menuBarController?.start()
+            }
+        } else {
+            menuBarController?.stop()
+            menuBarController = nil
+        }
+    }
+
+    private func showMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            NSWorkspace.shared.open(Bundle.main.bundleURL)
+        }
     }
 
     @objc func scanFolder(

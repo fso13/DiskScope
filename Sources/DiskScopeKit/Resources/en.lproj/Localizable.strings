@@ -372,3 +372,10 @@
 "Прогресс" = "Progress";
 
 "←↑↓→ выбор · Return открыть · Space просмотр" = "←↑↓→ select · Return open · Space Quick Look";
+
+"Меню-бар" = "Menu bar";
+"Показывать свободное место" = "Show free space";
+"Отображение" = "Display";
+"Свободно" = "Free";
+"Процент" = "Percent";
+"Иконка остаётся в строке меню, даже когда окно DiskScope закрыто. Клик открывает меню со свободным местом и быстрыми действиями." = "The icon stays in the menu bar even when the DiskScope window is closed. Click it for free space and quick actions.";
