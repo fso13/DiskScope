@@ -54,6 +54,8 @@ public final class ScanTreeCache: @unchecked Sendable {
         self.url = url
     }
 
+    public var fileURL: URL { url }
+
     public static var defaultURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
