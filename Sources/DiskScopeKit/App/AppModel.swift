@@ -165,6 +165,9 @@ public final class AppModel: ObservableObject {
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
+    @Published public internal(set) var folderBudgets: [FolderBudget] = FolderBudgetStore.load()
+    private var budgetsObserver: NSObjectProtocol?
+
     private var cancellation: ScanCancellation?
     var duplicateCancellation: ScanCancellation?
     var similarCancellation: ScanCancellation?
@@ -192,7 +195,21 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.parallelTraversal: true,
         ])
         scanHistory = ScanHistoryStore().load()
+        folderBudgets = FolderBudgetStore.load()
+        budgetsObserver = NotificationCenter.default.addObserver(
+            forName: .folderBudgetsChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.folderBudgets = FolderBudgetStore.load()
+        }
         media.attach(appModel: self)
+    }
+
+    deinit {
+        if let budgetsObserver {
+            NotificationCenter.default.removeObserver(budgetsObserver)
+        }
     }
 
     // MARK: - Derived state
@@ -311,30 +328,6 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    public func chooseFolder() {
-        guard !isScanning else { return }
-        let panel = NSOpenPanel()
-        panel.title = "Выберите папку для анализа"
-        panel.message = "DiskScope посчитает, что занимает место внутри выбранной папки."
-        panel.prompt = "Сканировать"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
-        if panel.runModal() == .OK, let url = panel.url {
-            scan(path: url.path)
-        }
-    }
-
-    public func scanHome() {
-        scan(path: homePath)
-    }
-
-    public func scanVolume(_ volume: VolumeInfo) {
-        scan(path: volume.path)
-    }
-
     private func finishScan(_ result: ScanTree) {
         tree = result
         phase = .ready
@@ -348,6 +341,7 @@ public final class AppModel: ObservableObject {
         rebuildCurrentRows()
         refreshDerived()
         recordScanHistory(result)
+        notifyExceededBudgets(result)
     }
 
     private func failScan(_ error: Error, wasCancelled: Bool) {

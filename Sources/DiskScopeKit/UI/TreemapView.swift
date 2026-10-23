@@ -35,9 +35,11 @@ struct TreemapView: View {
                                 hovered: cell.id == hoveredID,
                                 compactLabel: subdivided.contains(cell.id)
                             )
+                            drawBudgetBadge(cell: cell, in: &context)
                         }
                         for cell in cells where cell.depth == 2 {
                             draw(cell: cell, in: &context, hovered: cell.id == hoveredID, compactLabel: false)
+                            drawBudgetBadge(cell: cell, in: &context)
                         }
                         if let keyboardNode,
                            let cell = cells.first(where: { $0.node == keyboardNode && $0.node != nil }) {
@@ -260,6 +262,29 @@ struct TreemapView: View {
     }
 
     // MARK: - Drawing
+
+    private func drawBudgetBadge(cell: TreemapCell, in context: inout GraphicsContext) {
+        guard let node = cell.node,
+              let status = model.folderBudgetStatus(forNode: node) else { return }
+        let rect = cell.rect.insetBy(dx: 1, dy: 1)
+        guard rect.width > 8, rect.height > 8 else { return }
+        let color = status.exceeded ? Color.red : Color.orange
+        context.stroke(
+            Path(roundedRect: rect, cornerRadius: cell.depth == 1 ? 4 : 2),
+            with: .color(color),
+            lineWidth: 2
+        )
+        guard status.exceeded, rect.width > 24, rect.height > 18 else { return }
+        let center = CGPoint(x: rect.maxX - 9, y: rect.minY + 9)
+        context.fill(
+            Path(ellipseIn: CGRect(x: center.x - 7, y: center.y - 7, width: 14, height: 14)),
+            with: .color(color)
+        )
+        context.draw(
+            Text("!").font(.system(size: 9, weight: .bold)).foregroundColor(.white),
+            at: center
+        )
+    }
 
     private func draw(cell: TreemapCell, in context: inout GraphicsContext, hovered: Bool, compactLabel: Bool) {
         let rect = cell.rect

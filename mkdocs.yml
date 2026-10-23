@@ -64,6 +64,7 @@ nav:
   - Меню-бар: menu-bar.md
   - Кэш дерева: scan-cache.md
   - Параллельный обход: parallel-scan.md
+  - Бюджеты папок: folder-budgets.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
