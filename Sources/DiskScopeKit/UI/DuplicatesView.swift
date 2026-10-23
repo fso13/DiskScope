@@ -8,16 +8,16 @@ struct DuplicatesView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 12) {
                 controlCard
-                if model.duplicateScanning {
+                if model.duplicates.scanning {
                     progressCard
-                } else if model.duplicateGroups.isEmpty {
+                } else if model.duplicates.groups.isEmpty {
                     emptyCard
                 } else {
-                    ForEach(model.duplicateGroups) { group in
+                    ForEach(model.duplicates.groups) { group in
                         DuplicateGroupCard(group: group, selected: $selected)
                             .environmentObject(model)
                     }
-                    if model.duplicateGroups.count >= 300 {
+                    if model.duplicates.groups.count >= 300 {
                         Text("Показаны первые 300 групп. Увеличьте минимальный размер, чтобы сузить выборку.")
                             .font(.system(size: 9.5))
                             .foregroundStyle(.tertiary)
@@ -32,10 +32,10 @@ struct DuplicatesView: View {
         .task {
             model.findDuplicates()
         }
-        .onChange(of: model.duplicateGroups) { _, _ in
+        .onChange(of: model.duplicates.groups) { _, _ in
             seedSelection()
         }
-        .onChange(of: model.duplicateMinimumSize) { _, _ in
+        .onChange(of: model.duplicates.minimumSize) { _, _ in
             model.findDuplicates(force: true)
         }
         .onAppear {
@@ -58,23 +58,23 @@ struct DuplicatesView: View {
                     model.findDuplicates(force: true)
                 } label: {
                     HStack(spacing: 5) {
-                        if model.duplicateScanning {
+                        if model.duplicates.scanning {
                             ProgressView().controlSize(.mini)
                         } else {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 9, weight: .semibold))
                         }
-                        Text(model.duplicateScanning ? "Ищем…" : "Найти")
+                        Text(model.duplicates.scanning ? "Ищем…" : "Найти")
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
-                .disabled(model.duplicateScanning || model.tree == nil)
+                .disabled(model.duplicates.scanning || model.tree == nil)
             }
 
             HStack(spacing: 12) {
-                Picker("Минимальный размер", selection: $model.duplicateMinimumSize) {
+                Picker("Минимальный размер", selection: $model.duplicates.minimumSize) {
                     Text("Любой размер").tag(Int64(0))
                     Text("от 1 МБ").tag(Int64(1_000_000))
                     Text("от 10 МБ").tag(Int64(10_000_000))
@@ -84,10 +84,10 @@ struct DuplicatesView: View {
                 .pickerStyle(.menu)
                 .frame(width: 145)
 
-                if !model.duplicateGroups.isEmpty {
-                    statPill("Групп", ByteFormat.count(model.duplicateGroups.count))
-                    statPill("Кандидатов", ByteFormat.count(model.duplicateCandidateCount))
-                    statPill("Можно освободить", ByteFormat.string(model.duplicateTotalWasted), tint: Theme.accent)
+                if !model.duplicates.groups.isEmpty {
+                    statPill("Групп", ByteFormat.count(model.duplicates.groups.count))
+                    statPill("Кандидатов", ByteFormat.count(model.duplicates.candidateCount))
+                    statPill("Можно освободить", ByteFormat.string(model.duplicates.totalWasted), tint: Theme.accent)
                 }
                 Spacer(minLength: 0)
             }
@@ -116,13 +116,13 @@ struct DuplicatesView: View {
                 Text("Считаем хеши")
                     .font(.system(size: 11.5, weight: .semibold))
                 Spacer()
-                Text(model.duplicateProgress.formatted(.percent.precision(.fractionLength(0))))
+                Text(model.duplicates.progress.formatted(.percent.precision(.fractionLength(0))))
                     .font(.system(size: 10.5, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
             ProgressBar(
-                fraction: model.duplicateProgress,
+                fraction: model.duplicates.progress,
                 tint: AnyShapeStyle(Theme.accent),
                 height: 6
             )
@@ -169,7 +169,7 @@ struct DuplicatesView: View {
 
     private func seedSelection() {
         var next: Set<Int32> = []
-        for group in model.duplicateGroups {
+        for group in model.duplicates.groups {
             for file in group.files.dropFirst() {
                 next.insert(file.index)
             }

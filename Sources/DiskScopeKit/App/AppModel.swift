@@ -111,14 +111,7 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var search = SearchModel()
     @Published public internal(set) var disk = DiskModel()
     @Published public internal(set) var history = HistoryModel()
-    @Published public internal(set) var duplicateGroups: [DuplicateGroup] = []
-    @Published public internal(set) var duplicateTotalWasted: Int64 = 0
-    @Published public internal(set) var duplicateCandidateCount = 0
-    @Published public internal(set) var duplicateScanning = false
-    @Published public internal(set) var duplicateProgress: Double = 0
-    @Published public var duplicateMinimumSize: Int64 = 1_000_000 {
-        didSet { resetDuplicates() }
-    }
+    @Published public internal(set) var duplicates = DuplicatesModel()
     @Published public var similarOptions = SimilarImageOptions() {
         didSet { resetSimilar() }
     }
@@ -128,7 +121,6 @@ public final class AppModel: ObservableObject {
 
     @Published public internal(set) var budget = BudgetModel()
 
-    var duplicateCancellation: ScanCancellation?
     var similarCancellation: ScanCancellation?
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
@@ -167,6 +159,10 @@ public final class AppModel: ObservableObject {
             self?.objectWillChange.send()
         }
         scan.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        duplicates.attach { [weak self] in self?.tree }
+        duplicates.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         trash.objectWillChange.sink { [weak self] _ in
@@ -825,11 +821,7 @@ public final class AppModel: ObservableObject {
 
     /// Fills duplicate groups without hashing files; used by snapshots.
     public func previewDuplicates(_ groups: [DuplicateGroup]) {
-        duplicateGroups = groups
-        duplicateTotalWasted = groups.reduce(0) { $0 + $1.wastedBytes }
-        duplicateCandidateCount = groups.reduce(0) { $0 + $1.files.count }
-        duplicateScanning = false
-        duplicateProgress = 1
+        duplicates.preview(groups)
     }
 
     /// Fills disk overview state without scanning the real Trash; used by snapshots.
