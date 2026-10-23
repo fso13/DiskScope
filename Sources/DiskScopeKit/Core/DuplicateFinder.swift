@@ -154,7 +154,16 @@ public enum DuplicateFinder {
 
         var groups: [DuplicateGroup] = []
         for (key, indices) in fullGroups where indices.count > 1 {
-            let files = indices.map { index in
+            var seenInodes = Set<UInt64>()
+            let unique = indices
+                .sorted { tree.relativePath(of: $0).localizedStandardCompare(tree.relativePath(of: $1)) == .orderedAscending }
+                .filter { index in
+                    let fileID = tree.node(index).fileID
+                    guard fileID != 0 else { return true }
+                    return seenInodes.insert(fileID).inserted
+                }
+            guard unique.count > 1 else { continue }
+            let files = unique.map { index in
                 DuplicateFile(
                     index: index,
                     path: tree.path(of: index),

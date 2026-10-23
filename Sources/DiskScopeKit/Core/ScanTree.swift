@@ -85,6 +85,9 @@ public struct ScanNode: Sendable, Codable {
         set { kind = (kind & 0x7F) | (newValue ? 0x80 : 0) }
     }
 
+    /// Inode identifier used to canonicalise hard links after a parallel scan.
+    public var fileID: UInt64 = 0
+
     public var category: FileCategory {
         get { FileCategory(rawValue: Int(dominant)) ?? .other }
         set { dominant = UInt8(newValue.rawValue) }
@@ -185,6 +188,10 @@ public final class ScanTree {
     public func node(_ index: Int32) -> ScanNode { nodes[Int(index)] }
 
     public func isDeleted(_ index: Int32) -> Bool { deleted[Int(index)] }
+
+    func replaceNode(at index: Int32, with node: ScanNode) {
+        nodes[Int(index)] = node
+    }
 
     /// Finds a node by absolute path, following the scan root.
     public func index(ofPath path: String) -> Int32? {

@@ -7,6 +7,7 @@ public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.language) private var language = AppLanguage.system.rawValue
     @AppStorage(AppSettingsKeys.menuBarMonitor) private var menuBarMonitor = false
     @AppStorage(AppSettingsKeys.menuBarDisplay) private var menuBarDisplay = MenuBarDisplayMode.free.rawValue
+    @AppStorage(AppSettingsKeys.parallelTraversal) private var parallelTraversal = true
     @StateObject private var updater = UpdateChecker()
     @State private var cacheCleared = false
 
@@ -161,6 +162,15 @@ public struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
+
+            Toggle("Параллельный обход каталогов", isOn: $parallelTraversal)
+                .toggleStyle(.switch)
+                .font(.system(size: 11.5, weight: .medium))
+
+            Text("Верхнеуровневые папки сканируются одновременно. Отключите для диагностики или на медленном диске.")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text("При отключении объекты сразу отправляются в Корзину без дополнительного подтверждения.")
                 .font(.system(size: 10))

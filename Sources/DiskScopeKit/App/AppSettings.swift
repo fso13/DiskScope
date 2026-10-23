@@ -6,6 +6,7 @@ public enum AppSettingsKeys {
     public static let language = "app.settings.language"
     public static let menuBarMonitor = "app.settings.menuBarMonitor"
     public static let menuBarDisplay = "app.settings.menuBarDisplay"
+    public static let parallelTraversal = "app.settings.parallelTraversal"
 }
 
 public extension Notification.Name {

@@ -9,17 +9,21 @@ public struct ScanOptions: Sendable {
     public var treatsPackagesAsSingleItems: Bool
     /// Absolute paths that must not be scanned (for example the cache directory).
     public var excludedPaths: [String]
+    /// Scans top-level directories concurrently when the volume has several.
+    public var parallelTraversal: Bool
 
     public init(
         minimumFileSize: Int64 = 64 * 1024,
         treatsPackagesAsSingleItems: Bool = true,
-        excludedPaths: [String] = []
+        excludedPaths: [String] = [],
+        parallelTraversal: Bool = true
     ) {
         self.minimumFileSize = minimumFileSize
         self.treatsPackagesAsSingleItems = treatsPackagesAsSingleItems
         self.excludedPaths = excludedPaths.map {
             URL(fileURLWithPath: $0).standardizedFileURL.path
         }
+        self.parallelTraversal = parallelTraversal
     }
 
     public static let balanced = ScanOptions()
@@ -108,16 +112,49 @@ private let vTypeRegular: UInt32 = 1
 private let vTypeDirectory: UInt32 = 2
 private let vTypeSymlink: UInt32 = 5
 
+/// Shared between parallel subtree scans so hard links are counted once.
+public final class HardLinkRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seen: Set<UInt64> = []
+    private var pathsByID: [UInt64: Set<String>] = [:]
+
+    public init() {}
+
+    func register(_ id: UInt64) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return seen.insert(id).inserted
+    }
+
+    func record(_ id: UInt64, path: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        pathsByID[id, default: []].insert(path)
+    }
+
+    func duplicateGroups() -> [[String]] {
+        lock.lock()
+        defer { lock.unlock() }
+        return pathsByID.values.filter { $0.count > 1 }.map { Array($0) }
+    }
+}
+
 /// Scans a directory tree and produces a compact `ScanTree`.
 public final class DiskScanner {
     public let options: ScanOptions
+    public let hardLinkRegistry: HardLinkRegistry
 
-    public init(options: ScanOptions = ScanOptions()) {
+    public init(
+        options: ScanOptions = ScanOptions(),
+        hardLinkRegistry: HardLinkRegistry = HardLinkRegistry()
+    ) {
         self.options = options
+        self.hardLinkRegistry = hardLinkRegistry
     }
 
     public func scan(
         path: String,
+        rootKind: NodeKind = .directory,
         cancellation: ScanCancellation? = nil,
         progress: ((ScanProgress) -> Void)? = nil
     ) throws -> ScanTree {
@@ -154,13 +191,16 @@ public final class DiskScanner {
                 rootName: rootName,
                 rootSize: rootSize,
                 rootCreatedDays: rootCreatedDays,
-                rootModifiedDays: rootModifiedDays
+                rootModifiedDays: rootModifiedDays,
+                rootKind: rootKind
             ),
             rootPath: standardized,
             rootDevice: rootStat.st_dev,
             minimumFileSize: options.minimumFileSize,
             treatsPackagesAsSingleItems: options.treatsPackagesAsSingleItems,
             excludedPaths: options.excludedPaths,
+            parallelTraversal: options.parallelTraversal,
+            hardLinkRegistry: hardLinkRegistry,
             cancellation: cancellation,
             progress: progress
         )
@@ -170,7 +210,9 @@ public final class DiskScanner {
         try scanDirectory(fd: fd, nodeIndex: 0, session: session, useBulk: useBulk)
 
         let report = session.makeReport()
-        return session.builder.finalize(rootPath: standardized, report: report)
+        let tree = session.builder.finalize(rootPath: standardized, report: report)
+        canonicalizeHardLinks(in: tree, registry: hardLinkRegistry)
+        return tree
     }
 
     private static func standardized(path: String) -> String {
@@ -209,6 +251,101 @@ public final class DiskScanner {
 
     // MARK: - Directory walking
 
+    private func scanTopLevelInParallel(
+        _ subdirectories: [Subdirectory],
+        session: ScanSession
+    ) throws {
+        let rootPath = session.currentPath()
+        var children = [ScanTree?](repeating: nil, count: subdirectories.count)
+        var failures = [Bool](repeating: false, count: subdirectories.count)
+        let childOptions = ScanOptions(
+            minimumFileSize: session.minimumFileSize,
+            treatsPackagesAsSingleItems: session.treatsPackagesAsSingleItems,
+            excludedPaths: session.excludedPaths,
+            parallelTraversal: false
+        )
+        DispatchQueue.concurrentPerform(iterations: subdirectories.count) { offset in
+            if session.isCancelled { return }
+            let subdirectory = subdirectories[offset]
+            let path = rootPath == "/"
+                ? "/" + subdirectory.displayName
+                : rootPath + "/" + subdirectory.displayName
+            do {
+                children[offset] = try DiskScanner(
+                    options: childOptions,
+                    hardLinkRegistry: session.hardLinkRegistry
+                ).scan(
+                    path: path,
+                    rootKind: subdirectory.isPackage ? .package : .directory,
+                    cancellation: session.cancellation
+                )
+            } catch {
+                failures[offset] = true
+            }
+        }
+        if session.isCancelled { throw ScanError.cancelled }
+
+        var mergedTrees: [ScanTree] = []
+        for offset in subdirectories.indices {
+            if failures[offset] {
+                session.recordSkipped(path: rootPath, errno: EACCES)
+                continue
+            }
+            guard let tree = children[offset] else { continue }
+            mergedTrees.append(tree)
+            session.merge(report: tree.report)
+            session.files += tree.totalFiles
+            session.directories += max(tree.directoryCount() - 1, 0)
+            session.bytes += tree.report.bytesFound
+        }
+        session.builder.mergeSubtrees(mergedTrees, parent: 0)
+    }
+
+    private func canonicalizeHardLinks(in tree: ScanTree, registry: HardLinkRegistry) {
+        for group in registry.duplicateGroups() {
+            let paths = group.sorted {
+                $0.localizedStandardCompare($1) == .orderedAscending
+            }
+            guard paths.count > 1 else { continue }
+            let parents = Set(paths.map { URL(fileURLWithPath: $0).deletingLastPathComponent().path })
+            guard parents.count > 1 else { continue }
+            let indices = paths.compactMap { tree.index(ofPath: $0) }
+            guard indices.count == paths.count else { continue }
+            let fullSize = indices.map { tree.nodes[Int($0)].size }.max() ?? 0
+            guard fullSize > 0 else { continue }
+            for (offset, index) in indices.enumerated() {
+                var node = tree.node(index)
+                if offset == 0 {
+                    if node.size == 0 {
+                        node.size = fullSize
+                        node.itemCount = 1
+                        node.isHardLink = false
+                        tree.replaceNode(at: index, with: node)
+                        addToAncestors(tree: tree, index: index, size: fullSize, items: 1)
+                    }
+                } else if node.size > 0 {
+                    let oldSize = node.size
+                    node.size = 0
+                    node.itemCount = 0
+                    node.isHardLink = true
+                    tree.replaceNode(at: index, with: node)
+                    addToAncestors(tree: tree, index: index, size: -oldSize, items: -1)
+                }
+            }
+        }
+    }
+
+    private func addToAncestors(tree: ScanTree, index: Int32, size: Int64, items: Int32) {
+        var parent = tree.node(index).parent
+        while parent >= 0 {
+            var node = tree.node(parent)
+            node.size += size
+            node.itemCount += items
+            tree.replaceNode(at: parent, with: node)
+            parent = node.parent
+        }
+    }
+
     private func scanDirectory(fd: Int32, nodeIndex: Int32, session: ScanSession, useBulk: Bool) throws {
         var subdirectories: [Subdirectory] = []
         var aggregateBytes: Int64 = 0
@@ -238,18 +375,32 @@ public final class DiskScanner {
             switch kind {
             case .directory:
                 let isPackage = session.isPackage(name, length: nameLength)
-                let index = session.builder.appendNode(
-                    parent: nodeIndex,
-                    name: name,
-                    nameLength: nameLength,
-                    kind: isPackage ? .package : .directory,
-                    size: size,
-                    itemCount: 0,
-                    category: isPackage ? .app : .other,
-                    createdDays: createdDays,
-                    modifiedDays: modifiedDays
-                )
-                subdirectories.append(Subdirectory(name: name, length: nameLength, node: index))
+                if session.parallelTraversal, nodeIndex == 0 {
+                    subdirectories.append(Subdirectory(
+                        name: name,
+                        length: nameLength,
+                        node: -1,
+                        isPackage: isPackage
+                    ))
+                } else {
+                    let index = session.builder.appendNode(
+                        parent: nodeIndex,
+                        name: name,
+                        nameLength: nameLength,
+                        kind: isPackage ? .package : .directory,
+                        size: size,
+                        itemCount: 0,
+                        category: isPackage ? .app : .other,
+                        createdDays: createdDays,
+                        modifiedDays: modifiedDays
+                    )
+                    subdirectories.append(Subdirectory(
+                        name: name,
+                        length: nameLength,
+                        node: index,
+                        isPackage: isPackage
+                    ))
+                }
                 session.directories += 1
             case .file:
                 let duplicate = fileID != 0 && !session.registerFileID(fileID)
@@ -269,8 +420,15 @@ public final class DiskScanner {
                         category: category,
                         createdDays: createdDays,
                         modifiedDays: modifiedDays,
-                        isHardLink: duplicate
+                        isHardLink: duplicate,
+                        fileID: fileID
                     )
+                    if fileID != 0 {
+                        session.hardLinkRegistry.record(
+                            fileID,
+                            path: session.pathFor(name: name, length: nameLength)
+                        )
+                    }
                 } else {
                     aggregateBytes += countedSize
                     aggregateCount += 1
@@ -319,23 +477,30 @@ public final class DiskScanner {
             )
         }
 
-        for subdirectory in subdirectories {
-            session.components.append(subdirectory.displayName)
-            let childFD = subdirectory.withCString { name in
-                openat(fd, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
-            }
-            if childFD >= 0 {
-                do {
-                    try scanDirectory(fd: childFD, nodeIndex: subdirectory.node, session: session, useBulk: useBulk)
-                    close(childFD)
-                } catch {
-                    close(childFD)
-                    throw error
+        if session.parallelTraversal, nodeIndex == 0, !subdirectories.isEmpty {
+            try scanTopLevelInParallel(
+                subdirectories,
+                session: session
+            )
+        } else {
+            for subdirectory in subdirectories {
+                session.components.append(subdirectory.displayName)
+                let childFD = subdirectory.withCString { name in
+                    openat(fd, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
                 }
-            } else {
-                session.recordSkipped(path: session.currentPath(), errno: errno)
+                if childFD >= 0 {
+                    do {
+                        try scanDirectory(fd: childFD, nodeIndex: subdirectory.node, session: session, useBulk: useBulk)
+                        close(childFD)
+                    } catch {
+                        close(childFD)
+                        throw error
+                    }
+                } else {
+                    session.recordSkipped(path: session.currentPath(), errno: errno)
+                }
+                session.components.removeLast()
             }
-            session.components.removeLast()
         }
     }
 
@@ -504,13 +669,15 @@ public final class DiskScanner {
 private final class Subdirectory {
     let bytes: [UInt8]
     let node: Int32
+    let isPackage: Bool
     lazy var displayName = String(decoding: bytes.prefix(bytes.count - 1), as: UTF8.self)
 
-    init(name: UnsafePointer<UInt8>, length: Int, node: Int32) {
+    init(name: UnsafePointer<UInt8>, length: Int, node: Int32, isPackage: Bool) {
         var storage = [UInt8](repeating: 0, count: length + 1)
         for index in 0..<length { storage[index] = name[index] }
         self.bytes = storage
         self.node = node
+        self.isPackage = isPackage
     }
 
     func withCString<T>(_ body: (UnsafePointer<CChar>) -> T) -> T {
@@ -528,6 +695,8 @@ private final class ScanSession {
     let treatsPackagesAsSingleItems: Bool
     let excludedPaths: [String]
     private let excludedNames: Set<String>
+    let parallelTraversal: Bool
+    let hardLinkRegistry: HardLinkRegistry
     let cancellation: ScanCancellation?
     let progress: ((ScanProgress) -> Void)?
 
@@ -555,6 +724,8 @@ private final class ScanSession {
         minimumFileSize: Int64,
         treatsPackagesAsSingleItems: Bool,
         excludedPaths: [String],
+        parallelTraversal: Bool,
+        hardLinkRegistry: HardLinkRegistry,
         cancellation: ScanCancellation?,
         progress: ((ScanProgress) -> Void)?
     ) {
@@ -565,6 +736,8 @@ private final class ScanSession {
         self.treatsPackagesAsSingleItems = treatsPackagesAsSingleItems
         self.excludedPaths = excludedPaths
         self.excludedNames = Set(excludedPaths.map { URL(fileURLWithPath: $0).lastPathComponent })
+        self.parallelTraversal = parallelTraversal
+        self.hardLinkRegistry = hardLinkRegistry
         self.cancellation = cancellation
         self.progress = progress
     }
@@ -576,7 +749,7 @@ private final class ScanSession {
     var isCancelled: Bool { cancellation?.isCancelled ?? false }
 
     func registerFileID(_ id: UInt64) -> Bool {
-        seenFileIDs.insert(id).inserted
+        hardLinkRegistry.register(id)
     }
 
     func tick() {
@@ -596,6 +769,12 @@ private final class ScanSession {
             currentPath: currentPath(),
             elapsed: elapsed
         ))
+    }
+
+    func pathFor(name: UnsafePointer<UInt8>, length: Int) -> String {
+        let base = currentPath()
+        let string = String(decoding: UnsafeBufferPointer(start: name, count: length), as: UTF8.self)
+        return base == "/" ? "/" + string : base + "/" + string
     }
 
     func currentPath() -> String {
@@ -653,6 +832,15 @@ private final class ScanSession {
         return ""
     }
 
+    func merge(report: ScanReport) {
+        skippedItems += report.skippedItems
+        skippedMounts += report.skippedMounts
+        for path in report.sampleSkippedPaths where sampleSkippedPaths.count < 25 {
+            if !sampleSkippedPaths.contains(path) { sampleSkippedPaths.append(path) }
+        }
+        hardLinkBytes += report.hardLinkBytes
+    }
+
     func makeReport() -> ScanReport {
         ScanReport(
             duration: Date().timeIntervalSince(startTime),
@@ -672,18 +860,20 @@ private final class ScanSession {
 final class TreeBuilder {
     private(set) var nodes: [ScanNode] = []
     private(set) var names: [UInt8] = []
+    private var mergedDescendants: Set<Int> = []
 
     init(
         rootName: String,
         rootSize: Int64,
         rootCreatedDays: Int32 = ScanNode.unknownDay,
-        rootModifiedDays: Int32 = ScanNode.unknownDay
+        rootModifiedDays: Int32 = ScanNode.unknownDay,
+        rootKind: NodeKind = .directory
     ) {
         var root = ScanNode()
         let bytes = Array(rootName.utf8)
         root.nameOffset = 0
         root.nameLength = Int32(bytes.count)
-        root.kind = NodeKind.directory.rawValue
+        root.kind = rootKind.rawValue
         root.size = rootSize
         root.category = .other
         root.createdDays = rootCreatedDays
@@ -704,7 +894,8 @@ final class TreeBuilder {
         category: FileCategory,
         createdDays: Int32,
         modifiedDays: Int32,
-        isHardLink: Bool = false
+        isHardLink: Bool = false,
+        fileID: UInt64 = 0
     ) -> Int32 {
         let index = Int32(nodes.count)
         var node = ScanNode()
@@ -713,6 +904,7 @@ final class TreeBuilder {
         node.nameLength = Int32(nameLength)
         node.kind = kind.rawValue
         node.isHardLink = isHardLink
+        node.fileID = fileID
         node.size = size
         node.itemCount = itemCount
         node.dominant = UInt8(category.rawValue)
@@ -729,10 +921,58 @@ final class TreeBuilder {
         return index
     }
 
+    func mergeSubtrees(_ subtrees: [ScanTree], parent: Int32) {
+        guard !subtrees.isEmpty else { return }
+        var rootIndices: [Int32] = []
+        var nameBases: [Int32] = []
+        for subtree in subtrees where !subtree.nodes.isEmpty {
+            var root = subtree.nodes[0]
+            let nameBase = Int32(names.count)
+            nameBases.append(nameBase)
+            names.append(contentsOf: subtree.names)
+            root.parent = parent
+            root.nameOffset += nameBase
+            let index = Int32(nodes.count)
+            rootIndices.append(index)
+            nodes.append(root)
+            if nodes[Int(parent)].childrenCount == 0 {
+                nodes[Int(parent)].childrenStart = index
+            }
+            nodes[Int(parent)].childrenCount += 1
+        }
+
+        for (offset, subtree) in subtrees.enumerated() where offset < rootIndices.count {
+            let rootIndex = rootIndices[offset]
+            let nameBase = nameBases[offset]
+            let childrenStart = Int32(nodes.count)
+            var mapping = [Int32](repeating: rootIndex, count: subtree.nodes.count)
+            mapping[0] = rootIndex
+            for index in 1..<subtree.nodes.count {
+                mapping[index] = Int32(nodes.count)
+                mergedDescendants.insert(nodes.count)
+                nodes.append(subtree.nodes[index])
+            }
+            for index in 0..<subtree.nodes.count {
+                let target = Int(mapping[index])
+                let old = subtree.nodes[index]
+                nodes[target].parent = old.parent >= 0 ? mapping[Int(old.parent)] : parent
+                nodes[target].nameOffset = old.nameOffset + nameBase
+                if old.childrenStart > 0 {
+                    nodes[target].childrenStart = mapping[Int(old.childrenStart)]
+                }
+            }
+            nodes[Int(rootIndex)].childrenStart = childrenStart
+        }
+    }
+
     func finalize(rootPath: String, report: ScanReport) -> ScanTree {
         if nodes.count > 1 {
             var index = nodes.count - 1
             while index >= 1 {
+                if mergedDescendants.contains(index) {
+                    index -= 1
+                    continue
+                }
                 let parent = Int(nodes[index].parent)
                 if parent >= 0 {
                     nodes[parent].size += nodes[index].size
