@@ -206,7 +206,7 @@ final class SnapshotRenderer {
         render(model: model, named: "15-cleanup-dark", dark: true)
 
         model.tab = .largest
-        if let row = model.largestItems.first {
+        if let row = model.stats.largestItems.first {
             model.selection = [row.id]
         }
         model.showInspector = true
@@ -254,7 +254,7 @@ final class SnapshotRenderer {
         render(model: model, named: "17-disk-light", dark: false)
         render(model: model, named: "17-disk-dark", dark: true)
 
-        let duplicateRows = Array(model.largestItems.prefix(5))
+        let duplicateRows = Array(model.stats.largestItems.prefix(5))
         if duplicateRows.count >= 4 {
             let documents = ["Annual Report.pdf", "Annual Report copy.pdf", "Annual Report (1).pdf"]
             let videos = ["IMG_2048.mov", "IMG_2048 copy.mov"]
@@ -288,7 +288,7 @@ final class SnapshotRenderer {
         try? FileManager.default.createDirectory(at: similarDirectory, withIntermediateDirectories: true)
         let sourceImage = URL(fileURLWithPath: "/System/Library/Wallpapers/.default/DefaultAerial.heic")
         let similarNames = ["IMG_2048.heic", "IMG_2048-edit.heic", "IMG_2048-copy.heic"]
-        let similarFiles = zip(similarNames, model.largestItems.prefix(3)).map { name, row in
+        let similarFiles = zip(similarNames, model.stats.largestItems.prefix(3)).map { name, row in
             let url = similarDirectory.appendingPathComponent(name)
             try? FileManager.default.copyItem(at: sourceImage, to: url)
             return SimilarImage(

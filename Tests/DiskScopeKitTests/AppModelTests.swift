@@ -72,7 +72,7 @@ final class AppModelTests: XCTestCase {
                 if phase == .ready { ready.fulfill() }
             }
             .store(in: &bag)
-        model.$largestItems
+        model.stats.$largestItems
             .dropFirst()
             .sink { rows in
                 if !rows.isEmpty { derived.fulfill() }
@@ -88,8 +88,8 @@ final class AppModelTests: XCTestCase {
         XCTAssertGreaterThan(model.fileCount, 0)
         XCTAssertGreaterThan(model.folderCount, 0)
         XCTAssertFalse(model.currentRows.isEmpty)
-        XCTAssertFalse(model.largestItems.isEmpty)
-        XCTAssertFalse(model.categoryStats.isEmpty)
+        XCTAssertFalse(model.stats.largestItems.isEmpty)
+        XCTAssertFalse(model.stats.categoryStats.isEmpty)
         XCTAssertEqual(model.currentIndex, 0)
 
         let sub = try XCTUnwrap(model.currentRows.first { $0.name == "Sub" })
@@ -111,17 +111,17 @@ final class AppModelTests: XCTestCase {
 
         XCTAssertEqual(model.phase, .ready)
         XCTAssertEqual(model.tree?.rootPath, scratch.path)
-        XCTAssertFalse(model.largestItems.isEmpty)
+        XCTAssertFalse(model.stats.largestItems.isEmpty)
 
         model.showFiles(of: .video)
         XCTAssertEqual(model.tab, .largest)
         XCTAssertEqual(model.categoryFilter, .video)
-        XCTAssertFalse(model.filteredLargestRows.isEmpty)
-        XCTAssertTrue(model.filteredLargestRows.allSatisfy { $0.category == .video })
+        XCTAssertFalse(model.stats.filteredLargestRows.isEmpty)
+        XCTAssertTrue(model.stats.filteredLargestRows.allSatisfy { $0.category == .video })
 
         model.clearCategoryFilter()
         XCTAssertNil(model.categoryFilter)
-        XCTAssertGreaterThanOrEqual(model.filteredLargestRows.count, 1)
+        XCTAssertGreaterThanOrEqual(model.stats.filteredLargestRows.count, 1)
     }
 
     func testAggregatesCannotBeTrashed() throws {

@@ -30,10 +30,7 @@ public final class PreviewModel: ObservableObject {
         model.folderCount = tree.directoryCount()
         model.volumes = VolumeInfo.loadAll()
         model.rebuildCurrentRows()
-        model.largestItems = tree.largestItems(limit: 4000).map {
-            ItemRowFactory.make(tree: tree, index: $0, parentSize: max(tree.totalSize, 1), includePaths: true)
-        }
-        model.categoryStats = tree.categoryStats()
+        model.stats.apply(tree: tree)
     }
 
     /// Fills cleanup state without running the advisor; used by snapshots.

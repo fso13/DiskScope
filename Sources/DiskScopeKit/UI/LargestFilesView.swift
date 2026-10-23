@@ -5,7 +5,7 @@ struct LargestFilesView: View {
     @EnvironmentObject private var model: AppModel
     @State private var sortOrder: [KeyPathComparator<AppModel.ItemRow>] = [KeyPathComparator(\.size, order: .reverse)]
 
-    private var rows: [AppModel.ItemRow] { model.filteredLargestRows }
+    private var rows: [AppModel.ItemRow] { model.stats.filteredLargestRows }
 
     private var totalSize: Int64 {
         rows.reduce(Int64(0)) { $0 + $1.size }
@@ -175,7 +175,7 @@ struct LargestFilesView: View {
                 .font(.system(size: 9.5))
                 .foregroundStyle(.tertiary)
             Spacer()
-            Text("Найдено \(ByteFormat.count(model.largestItems.count)) объектов")
+            Text("Найдено \(ByteFormat.count(model.stats.largestItems.count)) объектов")
                 .font(.system(size: 9.5))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()

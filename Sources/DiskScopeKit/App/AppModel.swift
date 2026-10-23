@@ -87,8 +87,6 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
     @Published public internal(set) var fileCount = 0
     @Published public internal(set) var folderCount = 0
-    @Published public internal(set) var largestItems: [ItemRow] = []
-    @Published public internal(set) var categoryStats: [CategoryStat] = []
     @Published public private(set) var media = MediaModel()
 
     @Published public var toast: Toast?
@@ -107,12 +105,12 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var inspector = InspectorModel()
     @Published public internal(set) var report = ReportModel()
     @Published public internal(set) var preview = PreviewModel()
+    @Published public internal(set) var stats = DerivedStatsModel()
     @Published public var showInspector = false
 
     @Published public internal(set) var budget = BudgetModel()
 
     private var toastWorkItem: DispatchWorkItem?
-    private var derivedGeneration = 0
     private var cleanupCancellable: AnyCancellable?
     private var diskCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
@@ -207,6 +205,14 @@ public final class AppModel: ObservableObject {
         media.attach(appModel: self)
         preview.attach(appModel: self)
         preview.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        stats.attach(
+            treeProvider: { [weak self] in self?.tree },
+            categoryProvider: { [weak self] in self?.categoryFilter },
+            searchProvider: { [weak self] in self?.searchText ?? "" }
+        )
+        stats.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
     }
@@ -309,21 +315,6 @@ public final class AppModel: ObservableObject {
 
     // MARK: - Derived state
 
-    public var filteredLargestRows: [ItemRow] {
-        var rows = largestItems
-        if let filter = categoryFilter {
-            rows = rows.filter { $0.category == filter }
-        }
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !query.isEmpty {
-            rows = rows.filter {
-                $0.name.localizedCaseInsensitiveContains(query) ||
-                $0.relativePath.localizedCaseInsensitiveContains(query)
-            }
-        }
-        return rows
-    }
-
     public var scanSummary: String {
         guard let tree else { return "" }
         return "\(ByteFormat.string(tree.totalSize)) · \(Plural.files(tree.totalFiles)) · \(Plural.folders(folderCount))"
@@ -395,7 +386,7 @@ public final class AppModel: ObservableObject {
         folderCount = result.directoryCount()
         refreshVolumes()
         nav.rebuild()
-        refreshDerived()
+        stats.refresh()
         history.record(result)
         notifyExceededBudgets(result)
     }
@@ -408,24 +399,6 @@ public final class AppModel: ObservableObject {
         }
         scan.fail(error)
         errorMessage = error.localizedDescription
-    }
-
-    private func refreshDerived() {
-        guard let tree else { return }
-        derivedGeneration += 1
-        let generation = derivedGeneration
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let items = tree.largestItems(limit: 4000)
-            let rows = items.map { index in
-                ItemRowFactory.make(tree: tree, index: index, parentSize: max(tree.totalSize, 1), includePaths: true)
-            }
-            let stats = tree.categoryStats()
-            DispatchQueue.main.async {
-                guard let self, self.derivedGeneration == generation, self.tree === tree else { return }
-                self.largestItems = rows
-                self.categoryStats = stats
-            }
-        }
     }
 
     // MARK: - Navigation
@@ -567,7 +540,7 @@ public final class AppModel: ObservableObject {
         }
         rebuildCurrentRows()
         refreshVolumes()
-        refreshDerived()
+        stats.refresh()
         invalidateCleanup()
         showToast(
             "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes)) · ⌘Z — отменить",
@@ -643,7 +616,7 @@ public final class AppModel: ObservableObject {
             }
             rebuildCurrentRows()
             refreshVolumes()
-            refreshDerived()
+            stats.refresh()
             invalidateCleanup()
             let bytes = groups.reduce(Int64(0)) { $0 + $1.bytes }
             showToast(
@@ -758,7 +731,7 @@ public final class AppModel: ObservableObject {
         }
         rebuildCurrentRows()
         refreshVolumes()
-        refreshDerived()
+        stats.refresh()
         invalidateCleanup()
 
         var text = "Очищено: \(Plural.items(indices.count)) · \(ByteFormat.string(removed.bytes))"
