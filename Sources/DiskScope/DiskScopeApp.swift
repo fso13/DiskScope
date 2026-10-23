@@ -77,7 +77,7 @@ struct DiskScopeApp: App {
             CommandGroup(after: .sidebar) {
                 Button("Палитра команд…") { model.showCommandPalette = true }
                     .keyboardShortcut("k", modifiers: .command)
-                Button("Найти по скану…") { model.showGlobalSearch = true }
+                Button("Найти по скану…") { model.search.show = true }
                     .keyboardShortcut("f", modifiers: .command)
                     .disabled(model.tree == nil)
                 Button("Инспектор") { model.showInspector.toggle() }

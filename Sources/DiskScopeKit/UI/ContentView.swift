@@ -51,8 +51,8 @@ public struct ContentView: View {
             CollectionView()
                 .environmentObject(model)
         }
-        .sheet(isPresented: $model.showGlobalSearch) {
-            GlobalSearchView()
+        .sheet(isPresented: $model.search.show) {
+            GlobalSearchView(search: model.search)
                 .environmentObject(model)
         }
         .sheet(isPresented: $model.showHistory) {
