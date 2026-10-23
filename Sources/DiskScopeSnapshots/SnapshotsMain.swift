@@ -55,7 +55,7 @@ final class SnapshotRenderer {
     func renderAll(tree: ScanTree) {
         let model = AppModel()
 
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
         model.tab = .map
         render(model: model, named: "01-map-light", dark: false)
         render(model: model, named: "02-map-dark", dark: true)
@@ -70,7 +70,7 @@ final class SnapshotRenderer {
         let deepFolder = findNode(in: tree, components: ["Xcode.app", "Contents", "Developer", "Platforms"])
             ?? firstPlausibleFolder(in: tree)
         if let deepFolder {
-            model.previewNavigate(to: deepFolder)
+            model.preview.navigate(to: deepFolder)
             render(model: model, named: "05-map-folder", dark: false)
         }
 
@@ -200,7 +200,7 @@ final class SnapshotRenderer {
                 selected: false
             ),
         ]
-        model.previewCleanup(suggestions: cleanup)
+        model.preview.cleanup(cleanup)
         model.tab = .cleanup
         render(model: model, named: "14-cleanup-light", dark: false)
         render(model: model, named: "15-cleanup-dark", dark: true)
@@ -249,7 +249,7 @@ final class SnapshotRenderer {
             ],
             updatedAt: Date()
         )
-        model.previewDiskOverview(diskOverview)
+        model.preview.diskOverview(diskOverview)
         model.tab = .disk
         render(model: model, named: "17-disk-light", dark: false)
         render(model: model, named: "17-disk-dark", dark: true)
@@ -274,7 +274,7 @@ final class SnapshotRenderer {
                     modified: nil
                 )
             }
-            model.previewDuplicates([
+            model.preview.duplicates([
                 DuplicateGroup(id: "preview-documents", size: 2_400_000_000, files: firstFiles),
                 DuplicateGroup(id: "preview-videos", size: 4_800_000_000, files: secondFiles),
             ])
@@ -299,7 +299,7 @@ final class SnapshotRenderer {
                 modified: nil
             )
         }
-        model.previewSimilar([
+        model.preview.similar([
             SimilarImageGroup(id: "preview-similar", images: similarFiles),
         ])
         model.tab = .similar
@@ -307,11 +307,11 @@ final class SnapshotRenderer {
         render(model: model, named: "19-similar-dark", dark: true)
         model.tab = .map
 
-        model.previewWelcome()
+        model.preview.welcome()
         render(model: model, named: "06-welcome", dark: false)
         render(model: model, named: "07-welcome-dark", dark: true)
 
-        model.previewScanning(
+        model.preview.scanning(
             path: model.homePath + "/Library/Application Support",
             progress: ScanProgress(
                 entries: 2_148_932,

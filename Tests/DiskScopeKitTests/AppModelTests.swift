@@ -107,7 +107,7 @@ final class AppModelTests: XCTestCase {
     func testPreviewCategoryFilterAndLargestRows() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         XCTAssertEqual(model.phase, .ready)
         XCTAssertEqual(model.tree?.rootPath, scratch.path)
@@ -127,7 +127,7 @@ final class AppModelTests: XCTestCase {
     func testAggregatesCannotBeTrashed() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         let aggregate = try XCTUnwrap(model.currentRows.first { $0.isAggregate })
         model.selection = [aggregate.id]
@@ -146,7 +146,7 @@ final class AppModelTests: XCTestCase {
     func testUndoIsUnavailableWithoutDeletion() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         XCTAssertFalse(model.canUndoTrash)
         model.undoLastTrash()
@@ -155,11 +155,11 @@ final class AppModelTests: XCTestCase {
 
     func testCleanupPreviewSelectionAndTotals() throws {
         let model = AppModel()
-        model.loadPreview(tree: try scannedTree())
+        model.preview.load(tree: try scannedTree())
         let safe = cleanupSuggestion(id: "safe", size: 100)
         let review = cleanupSuggestion(id: "review", size: 200, risk: .review, selected: false)
         let trash = cleanupSuggestion(id: "trash", size: 300, permanent: true, selected: false)
-        model.previewCleanup(suggestions: [safe, review, trash])
+        model.preview.cleanup([safe, review, trash])
 
         XCTAssertEqual(model.cleanup.totalSize, 600)
         XCTAssertEqual(model.cleanup.selectedCount, 1)
@@ -183,7 +183,7 @@ final class AppModelTests: XCTestCase {
     func testCollectionAcrossFoldersDedupesNestedAndClears() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         let sub = try XCTUnwrap(model.currentRows.first { $0.name == "Sub" })
         let video = try XCTUnwrap(model.currentRows.first { $0.name == "video.mov" })
@@ -215,14 +215,14 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.canTrashCollection)
 
         model.addToCollection([video.id])
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
         XCTAssertEqual(model.collectionCount, 0, "A new preview must reset the collection")
     }
 
     func testCollectionRejectsAggregates() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         let aggregate = try XCTUnwrap(model.currentRows.first { $0.isAggregate })
         model.addToCollection([aggregate.id])
@@ -232,13 +232,13 @@ final class AppModelTests: XCTestCase {
     func testSearchStateResetsOnPreview() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         model.search.text = "video"
         model.search.show = true
         XCTAssertTrue(model.search.show)
 
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
         XCTAssertFalse(model.search.show)
         XCTAssertEqual(model.search.text, "")
         XCTAssertTrue(model.search.hits.isEmpty)
@@ -250,7 +250,7 @@ final class AppModelTests: XCTestCase {
     func testInspectorAndQuickLookTargets() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
 
         XCTAssertEqual(model.inspectorNode, 0)
         XCTAssertFalse(model.canQuickLook)
@@ -277,7 +277,7 @@ final class AppModelTests: XCTestCase {
     func testSearchAndNavigationReset() throws {
         let tree = try scannedTree()
         let model = AppModel()
-        model.loadPreview(tree: tree)
+        model.preview.load(tree: tree)
         model.searchText = "video"
         XCTAssertTrue(model.currentRows.allSatisfy { $0.name.localizedCaseInsensitiveContains("video") })
         XCTAssertEqual(model.currentRows.count, 1)
@@ -309,11 +309,11 @@ final class AppModelTests: XCTestCase {
 
     func testWelcomeAndScanningPreviews() {
         let model = AppModel()
-        model.previewWelcome()
+        model.preview.welcome()
         XCTAssertEqual(model.phase, .welcome)
         XCTAssertNil(model.tree)
 
-        model.previewScanning(
+        model.preview.scanning(
             path: scratch.path,
             progress: ScanProgress(entries: 10, bytes: 1024, currentPath: scratch.path, elapsed: 1)
         )
@@ -324,7 +324,7 @@ final class AppModelTests: XCTestCase {
 
     func testScanRequestIsIgnoredWhileScanning() {
         let model = AppModel()
-        model.previewScanning(
+        model.preview.scanning(
             path: scratch.path,
             progress: ScanProgress(entries: 10, bytes: 1024, currentPath: scratch.path, elapsed: 1)
         )
