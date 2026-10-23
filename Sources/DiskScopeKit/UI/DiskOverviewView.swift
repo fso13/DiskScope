@@ -297,10 +297,12 @@ struct DiskOverviewView: View {
                 .foregroundStyle(.tertiary)
             Text(L10n.isEnglish
                 ? "Purgeable is an estimate of space macOS can reclaim without deleting your files. "
-                    + "APFS snapshots are not files and can pin blocks; DiskScope does not delete them."
+                    + "APFS snapshots are not files and can pin blocks; DiskScope does not delete them. "
+                    + "APFS clones are counted as separate files: deleting one clone may free nothing."
                 : "Purgeable — оценка места, которое macOS может освободить без удаления ваших файлов. "
                     + "Снимки APFS не показываются как файлы и могут удерживать блоки; "
-                    + "DiskScope их не удаляет.")
+                    + "DiskScope их не удаляет. APFS-клоны учитываются как отдельные файлы: "
+                    + "удаление одного клона может не освободить место.")
             .font(.system(size: 9.5))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)
