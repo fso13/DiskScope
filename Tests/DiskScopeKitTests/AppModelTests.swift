@@ -161,23 +161,23 @@ final class AppModelTests: XCTestCase {
         let trash = cleanupSuggestion(id: "trash", size: 300, permanent: true, selected: false)
         model.previewCleanup(suggestions: [safe, review, trash])
 
-        XCTAssertEqual(model.cleanupTotalSize, 600)
-        XCTAssertEqual(model.cleanupSelectedCount, 1)
-        XCTAssertEqual(model.cleanupSelectedSize, 100)
-        XCTAssertTrue(model.cleanupCanApply)
-        XCTAssertFalse(model.cleanupHasPermanentSelection)
+        XCTAssertEqual(model.cleanup.totalSize, 600)
+        XCTAssertEqual(model.cleanup.selectedCount, 1)
+        XCTAssertEqual(model.cleanup.selectedSize, 100)
+        XCTAssertTrue(model.cleanup.canApply)
+        XCTAssertFalse(model.cleanup.hasPermanentSelection)
 
-        model.toggleCleanupSelection("trash")
-        XCTAssertTrue(model.cleanupHasPermanentSelection)
-        XCTAssertTrue(model.cleanupConfirmationMessage.contains("безвозвратно"))
+        model.cleanup.toggle("trash")
+        XCTAssertTrue(model.cleanup.hasPermanentSelection)
+        XCTAssertTrue(model.cleanup.confirmationMessage.contains("безвозвратно"))
 
-        model.clearCleanupSelection()
-        XCTAssertFalse(model.cleanupCanApply)
-        model.selectAllSafeCleanup()
-        XCTAssertEqual(model.cleanupSelection, Set(["safe"]))
-        model.selectCleanup([review, trash])
-        XCTAssertEqual(model.cleanupSelection, Set(["safe", "review", "trash"]))
-        XCTAssertEqual(model.cleanupSelectedSize, 600)
+        model.cleanup.clearSelection()
+        XCTAssertFalse(model.cleanup.canApply)
+        model.cleanup.selectDefaults()
+        XCTAssertEqual(model.cleanup.selection, Set(["safe"]))
+        model.cleanup.select([review, trash])
+        XCTAssertEqual(model.cleanup.selection, Set(["safe", "review", "trash"]))
+        XCTAssertEqual(model.cleanup.selectedSize, 600)
     }
 
     func testCollectionAcrossFoldersDedupesNestedAndClears() throws {

@@ -5,8 +5,8 @@ struct CleanupView: View {
     @State private var targetGB: Double = 10
     @AppStorage(AppSettingsKeys.staleMonths) private var staleMonths = 12
 
-    private var suggestions: [CleanupSuggestion] { model.cleanupSuggestions }
-    private var staleItems: [CleanupSuggestion] { model.staleSuggestions }
+    private var suggestions: [CleanupSuggestion] { model.cleanup.suggestions }
+    private var staleItems: [CleanupSuggestion] { model.cleanup.staleSuggestions }
 
     private var groups: [(risk: CleanupRisk, items: [CleanupSuggestion])] {
         CleanupRisk.allCases.compactMap { risk in
@@ -20,7 +20,7 @@ struct CleanupView: View {
     }
 
     private var targetFraction: Double {
-        Double(model.cleanupSelectedSize) / Double(targetBytes)
+        Double(model.cleanup.selectedSize) / Double(targetBytes)
     }
 
     var body: some View {
@@ -34,7 +34,7 @@ struct CleanupView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .cardSurface()
         .task {
-            model.loadCleanupSuggestionsIfNeeded()
+            model.cleanup.loadIfNeeded()
         }
     }
 
@@ -48,7 +48,7 @@ struct CleanupView: View {
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.6)
-                Text(model.cleanupLoading ? "…" : ByteFormat.string(model.cleanupTotalSize))
+                Text(model.cleanup.loading ? "…" : ByteFormat.string(model.cleanup.totalSize))
                     .font(AppFont.number(24))
                     .monospacedDigit()
                 Text(
@@ -77,7 +77,7 @@ struct CleanupView: View {
                 HStack(spacing: 6) {
                     ProgressBar(fraction: targetFraction, height: 6)
                         .frame(width: 150)
-                    Text(ByteFormat.percent(model.cleanupSelectedSize, of: targetBytes))
+                    Text(ByteFormat.percent(model.cleanup.selectedSize, of: targetBytes))
                         .font(.system(size: 9.5, weight: .medium))
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -92,10 +92,10 @@ struct CleanupView: View {
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.6)
-                Text(ByteFormat.string(model.cleanupSelectedSize))
+                Text(ByteFormat.string(model.cleanup.selectedSize))
                     .font(AppFont.number(18))
                     .monospacedDigit()
-                Text(Plural.items(model.cleanupSelectedCount))
+                Text(Plural.items(model.cleanup.selectedCount))
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
             }
@@ -108,7 +108,7 @@ struct CleanupView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.cleanupLoading {
+        if model.cleanup.loading {
             VStack(spacing: 10) {
                 ProgressView()
                     .controlSize(.small)
@@ -147,7 +147,7 @@ struct CleanupView: View {
                     .foregroundStyle(Theme.warning)
                 Text("Заброшенные файлы")
                     .font(.system(size: 12, weight: .semibold))
-                Text("\(model.staleResult.totalFiles)")
+                Text("\(model.cleanup.staleResult.totalFiles)")
                     .font(.system(size: 10, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -155,7 +155,7 @@ struct CleanupView: View {
                     .padding(.vertical, 2)
                     .background(Theme.subtleFill, in: Capsule())
                 Spacer()
-                Text(ByteFormat.string(model.staleResult.totalBytes))
+                Text(ByteFormat.string(model.cleanup.staleResult.totalBytes))
                     .font(.system(size: 10.5, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -184,8 +184,8 @@ struct CleanupView: View {
                 ForEach(staleItems.prefix(20)) { suggestion in
                     CleanupRow(
                         suggestion: suggestion,
-                        isSelected: model.cleanupSelection.contains(suggestion.id),
-                        onToggle: { model.toggleCleanupSelection(suggestion.id) },
+                        isSelected: model.cleanup.selection.contains(suggestion.id),
+                        onToggle: { model.cleanup.toggle(suggestion.id) },
                         onReveal: { model.reveal(indices: [suggestion.nodeIndex]) }
                     )
                 }
@@ -199,13 +199,13 @@ struct CleanupView: View {
 
             HStack(spacing: 8) {
                 Button("Выбрать топ-20") {
-                    model.selectCleanup(Array(staleItems.prefix(20)))
+                    model.cleanup.select(Array(staleItems.prefix(20)))
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Theme.accent)
-                if model.staleResult.truncated {
-                    Text("Показаны 20 из \(model.staleResult.totalFiles)")
+                if model.cleanup.staleResult.truncated {
+                    Text("Показаны 20 из \(model.cleanup.staleResult.totalFiles)")
                         .font(.system(size: 9.5))
                         .foregroundStyle(.secondary)
                 }
@@ -238,7 +238,7 @@ struct CleanupView: View {
                     let selectable = items.filter { $0.disposition == .trash }
                     if !selectable.isEmpty {
                         Button(selectable.count == items.count ? "Выбрать все" : "Выбрать всё, кроме Корзины") {
-                            model.selectCleanup(selectable)
+                            model.cleanup.select(selectable)
                         }
                         .buttonStyle(.plain)
                         .font(.system(size: 10, weight: .medium))
@@ -257,8 +257,8 @@ struct CleanupView: View {
                 ForEach(items) { suggestion in
                     CleanupRow(
                         suggestion: suggestion,
-                        isSelected: model.cleanupSelection.contains(suggestion.id),
-                        onToggle: { model.toggleCleanupSelection(suggestion.id) },
+                        isSelected: model.cleanup.selection.contains(suggestion.id),
+                        onToggle: { model.cleanup.toggle(suggestion.id) },
                         onReveal: { model.reveal(indices: [suggestion.nodeIndex]) }
                     )
                 }
@@ -276,24 +276,24 @@ struct CleanupView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Text("Выбрано: \(Plural.items(model.cleanupSelectedCount)) · \(ByteFormat.string(model.cleanupSelectedSize))")
+            Text("Выбрано: \(Plural.items(model.cleanup.selectedCount)) · \(ByteFormat.string(model.cleanup.selectedSize))")
                 .font(.system(size: 10.5, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-            if model.cleanupHasPermanentSelection {
+            if model.cleanup.hasPermanentSelection {
                 Label("безвозвратно", systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.danger)
             }
             Spacer()
             GhostButton(title: "Снять выбор") {
-                model.clearCleanupSelection()
+                model.cleanup.clearSelection()
             }
             AccentButton(title: "Очистить…", symbol: "sparkles") {
                 model.requestCleanup()
             }
-            .disabled(!model.cleanupCanApply)
-            .opacity(model.cleanupCanApply ? 1 : 0.45)
+            .disabled(!model.cleanup.canApply)
+            .opacity(model.cleanup.canApply ? 1 : 0.45)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)

@@ -107,11 +107,7 @@ public final class AppModel: ObservableObject {
     @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
     @Published public private(set) var canUndoTrash = false
-    @Published public internal(set) var cleanupSuggestions: [CleanupSuggestion] = []
-    @Published public internal(set) var staleResult: StaleResult = .empty
-    @Published public var cleanupSelection: Set<String> = []
-    @Published public internal(set) var cleanupLoading = false
-    @Published public var showCleanupConfirmation = false
+    @Published public internal(set) var cleanup = CleanupModel()
     @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
     @Published public var showCollectionTrashConfirmation = false
@@ -150,8 +146,7 @@ public final class AppModel: ObservableObject {
     private let rowLimit = 2500
     private var trashUndoStack: [TrashUndoEntry] = []
     var fileOperationInFlight = false
-    var cleanupGeneration = 0
-    var cleanupTreeID: ObjectIdentifier?
+    private var cleanupCancellable: AnyCancellable?
     private var searchCancellable: AnyCancellable?
 
     public init() {
@@ -167,6 +162,20 @@ public final class AppModel: ObservableObject {
         scanHistory = ScanHistoryStore().load()
         search.attach { [weak self] in self?.tree }
         searchCancellable = search.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+        cleanup.attach(
+            treeProvider: { [weak self] in self?.tree },
+            environmentProvider: { [weak self] in
+                guard let self else { return .current() }
+                return CleanupEnvironment(
+                    homePath: self.homePath,
+                    runningBundleIdentifiers: self.runningBundleIdentifiers()
+                )
+            },
+            busyProvider: { [weak self] in self?.fileOperationInFlight ?? false }
+        )
+        cleanupCancellable = cleanup.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
         folderBudgets = FolderBudgetStore.load()
@@ -614,19 +623,19 @@ public final class AppModel: ObservableObject {
     // MARK: - Cleanup
 
     public func requestCleanup() {
-        guard cleanupCanApply else { return }
-        if cleanupHasPermanentSelection
+        guard cleanup.canApply else { return }
+        if cleanup.hasPermanentSelection
             || UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
-            showCleanupConfirmation = true
+            cleanup.showConfirmation = true
         } else {
             confirmCleanup()
         }
     }
 
     public func confirmCleanup() {
-        showCleanupConfirmation = false
+        cleanup.showConfirmation = false
         guard !fileOperationInFlight, !isScanning, let tree else { return }
-        let selected = cleanupSelectedSuggestions.filter { suggestion in
+        let selected = cleanup.selectedSuggestions.filter { suggestion in
             suggestion.nodeIndex > 0
                 && Int(suggestion.nodeIndex) < tree.count
                 && !tree.isDeleted(suggestion.nodeIndex)
@@ -712,12 +721,7 @@ public final class AppModel: ObservableObject {
     }
 
     func resetCleanup() {
-        cleanupGeneration += 1
-        cleanupSuggestions = []
-        staleResult = .empty
-        cleanupSelection = []
-        cleanupLoading = false
-        cleanupTreeID = nil
+        cleanup.reset()
     }
 
     private func invalidateCleanup() {
@@ -832,12 +836,7 @@ public final class AppModel: ObservableObject {
 
     /// Fills cleanup state without running the advisor; used by snapshots.
     public func previewCleanup(suggestions: [CleanupSuggestion]) {
-        cleanupGeneration += 1
-        cleanupSuggestions = suggestions
-        staleResult = .empty
-        cleanupSelection = Set(suggestions.filter { $0.isSelectedByDefault }.map(\.id))
-        cleanupLoading = false
-        cleanupTreeID = tree.map { ObjectIdentifier($0) }
+        cleanup.preview(suggestions)
     }
 
     /// Fills similar-image groups without running Vision; used by snapshots.
@@ -926,76 +925,6 @@ private struct TrashUndoFile: Sendable {
 private struct TrashUndoEntry: Sendable {
     let files: [TrashUndoFile]
     let collectionRoots: [Int32]
-}
-
-extension AppModel {
-    // MARK: - Cleanup state
-
-    public var cleanupSelectedSuggestions: [CleanupSuggestion] {
-        cleanupSuggestions.filter { cleanupSelection.contains($0.id) }
-    }
-
-    public var cleanupSelectedSize: Int64 {
-        cleanupSelectedSuggestions.reduce(Int64(0)) { $0 + $1.size }
-    }
-
-    public var cleanupSelectedCount: Int {
-        cleanupSelectedSuggestions.count
-    }
-
-    public var staleSuggestions: [CleanupSuggestion] {
-        cleanupSuggestions.filter { $0.ruleID == "stale" }
-    }
-
-    public var cleanupTotalSize: Int64 {
-        cleanupSuggestions.filter { $0.ruleID != "stale" }.reduce(Int64(0)) { $0 + $1.size }
-            + staleResult.totalBytes
-    }
-
-    public var cleanupCanApply: Bool {
-        !cleanupSelection.isEmpty && !cleanupLoading && !fileOperationInFlight
-    }
-
-    public var cleanupHasPermanentSelection: Bool {
-        cleanupSelectedSuggestions.contains { $0.disposition == .deletePermanently }
-    }
-
-    public var cleanupConfirmationMessage: String {
-        let selected = cleanupSelectedSuggestions
-        let size = ByteFormat.string(selected.reduce(Int64(0)) { $0 + $1.size })
-        if cleanupHasPermanentSelection {
-            return "\(Plural.items(selected.count)) · \(size). Среди них есть объекты, которые удаляются безвозвратно; отменить это через ⌘Z не получится."
-        }
-        return "\(Plural.items(selected.count)) · \(size). Файлы можно вернуть из Корзины через ⌘Z."
-    }
-
-    public func toggleCleanupSelection(_ id: String) {
-        var updated = cleanupSelection
-        if !updated.insert(id).inserted {
-            updated.remove(id)
-        }
-        cleanupSelection = updated
-    }
-
-    public func selectAllSafeCleanup() {
-        var updated = cleanupSelection
-        for suggestion in cleanupSuggestions where suggestion.isSelectedByDefault {
-            updated.insert(suggestion.id)
-        }
-        cleanupSelection = updated
-    }
-
-    public func selectCleanup(_ suggestions: [CleanupSuggestion]) {
-        var updated = cleanupSelection
-        for suggestion in suggestions {
-            updated.insert(suggestion.id)
-        }
-        cleanupSelection = updated
-    }
-
-    public func clearCleanupSelection() {
-        cleanupSelection = []
-    }
 }
 
 extension AppModel {

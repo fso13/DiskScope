@@ -33,11 +33,11 @@ public struct ContentView: View {
         } message: {
             Text(trashMessage)
         }
-        .alert("Очистить выбранное?", isPresented: $model.showCleanupConfirmation) {
+        .alert("Очистить выбранное?", isPresented: $model.cleanup.showConfirmation) {
             Button("Отмена", role: .cancel) {}
             Button("Очистить", role: .destructive) { model.confirmCleanup() }
         } message: {
-            Text(model.cleanupConfirmationMessage)
+            Text(model.cleanup.confirmationMessage)
         }
         .alert("Ошибка", isPresented: errorBinding) {
             Button("OK") { model.dismissError() }
