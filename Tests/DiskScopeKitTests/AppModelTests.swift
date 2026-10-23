@@ -234,17 +234,17 @@ final class AppModelTests: XCTestCase {
         let model = AppModel()
         model.loadPreview(tree: tree)
 
-        model.globalSearchText = "video"
-        model.showGlobalSearch = true
-        XCTAssertTrue(model.showGlobalSearch)
+        model.search.text = "video"
+        model.search.show = true
+        XCTAssertTrue(model.search.show)
 
         model.loadPreview(tree: tree)
-        XCTAssertFalse(model.showGlobalSearch)
-        XCTAssertEqual(model.globalSearchText, "")
-        XCTAssertTrue(model.searchHits.isEmpty)
-        XCTAssertEqual(model.searchTotal, 0)
-        XCTAssertFalse(model.searchIndexing)
-        XCTAssertFalse(model.searchReady)
+        XCTAssertFalse(model.search.show)
+        XCTAssertEqual(model.search.text, "")
+        XCTAssertTrue(model.search.hits.isEmpty)
+        XCTAssertEqual(model.search.total, 0)
+        XCTAssertFalse(model.search.indexing)
+        XCTAssertFalse(model.search.ready)
     }
 
     func testInspectorAndQuickLookTargets() throws {

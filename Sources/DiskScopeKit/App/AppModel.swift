@@ -115,36 +115,7 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
     @Published public var showCollectionTrashConfirmation = false
-    @Published public var showGlobalSearch = false {
-        didSet {
-            if showGlobalSearch {
-                ensureSearchIndex()
-                scheduleSearch()
-            }
-        }
-    }
-    @Published public var globalSearchText = "" {
-        didSet { scheduleSearch() }
-    }
-    @Published public var searchMinimumSize: Int64 = 0 {
-        didSet { scheduleSearch() }
-    }
-    @Published public var searchCategory: FileCategory? {
-        didSet { scheduleSearch() }
-    }
-    @Published public var searchKind: SearchKind = .any {
-        didSet { scheduleSearch() }
-    }
-    @Published public var searchDateRange: SearchDateRange = .any {
-        didSet { scheduleSearch() }
-    }
-    @Published public var searchSort: SearchSort = .size {
-        didSet { scheduleSearch() }
-    }
-    @Published public internal(set) var searchHits: [SearchHit] = []
-    @Published public internal(set) var searchTotal = 0
-    @Published public internal(set) var searchIndexing = false
-    @Published public internal(set) var searchReady = false
+    @Published public internal(set) var search = SearchModel()
     @Published public internal(set) var diskOverview: DiskOverview?
     @Published public internal(set) var diskOverviewLoading = false
     @Published public internal(set) var diskOverviewError: String?
@@ -181,10 +152,7 @@ public final class AppModel: ObservableObject {
     var fileOperationInFlight = false
     var cleanupGeneration = 0
     var cleanupTreeID: ObjectIdentifier?
-    var searchIndex: ScanSearchIndex?
-    var searchIndexGeneration = 0
-    var searchQueryGeneration = 0
-    var searchWorkItem: DispatchWorkItem?
+    private var searchCancellable: AnyCancellable?
 
     public init() {
         UserDefaults.standard.register(defaults: [
@@ -197,6 +165,10 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.staleMonths: 12,
         ])
         scanHistory = ScanHistoryStore().load()
+        search.attach { [weak self] in self?.tree }
+        searchCancellable = search.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
         folderBudgets = FolderBudgetStore.load()
         budgetsObserver = NotificationCenter.default.addObserver(
             forName: .folderBudgetsChanged,
@@ -262,7 +234,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
-        resetSearch()
+        search.reset()
         resetDuplicates()
         resetSimilar()
         lastScanPath = standardized
@@ -845,7 +817,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
-        resetSearch()
+        search.reset()
         resetDuplicates()
         resetSimilar()
         fileCount = tree.totalFiles
@@ -901,7 +873,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
-        resetSearch()
+        search.reset()
         resetDuplicates()
         resetSimilar()
         volumes = VolumeInfo.loadAll()
@@ -915,7 +887,7 @@ public final class AppModel: ObservableObject {
         resetTrashUndo()
         resetCleanup()
         resetCollection()
-        resetSearch()
+        search.reset()
         resetDuplicates()
         resetSimilar()
         volumes = VolumeInfo.loadAll()

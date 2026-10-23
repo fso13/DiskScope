@@ -493,7 +493,7 @@ struct CommandPaletteView: View {
                     symbol: "magnifyingglass",
                     shortcut: "⌘F"
                 ) {
-                    model.showGlobalSearch = true
+                    model.search.show = true
                 }
             )
             items.append(

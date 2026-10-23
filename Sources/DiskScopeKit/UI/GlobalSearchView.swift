@@ -3,10 +3,11 @@ import SwiftUI
 
 struct GlobalSearchView: View {
     @EnvironmentObject private var model: AppModel
+    @ObservedObject var search: SearchModel
     @FocusState private var searchFocused: Bool
 
     private var trimmedQuery: String {
-        model.globalSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        search.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -22,11 +23,11 @@ struct GlobalSearchView: View {
         .frame(width: 900, height: 650)
         .background(Theme.background)
         .onAppear {
-            model.ensureSearchIndex()
+            search.ensureIndex()
             searchFocused = true
         }
         .onExitCommand {
-            model.showGlobalSearch = false
+            search.show = false
         }
     }
 
@@ -36,14 +37,14 @@ struct GlobalSearchView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Theme.accent)
 
-            TextField("Имя файла или часть пути…", text: $model.globalSearchText)
+            TextField("Имя файла или часть пути…", text: $search.text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 18, weight: .medium))
                 .focused($searchFocused)
 
-            if !model.globalSearchText.isEmpty {
+            if !search.text.isEmpty {
                 Button {
-                    model.globalSearchText = ""
+                    search.text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 13))
@@ -54,7 +55,7 @@ struct GlobalSearchView: View {
             }
 
             Button {
-                model.showGlobalSearch = false
+                search.show = false
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
@@ -72,7 +73,7 @@ struct GlobalSearchView: View {
 
     private var filters: some View {
         HStack(spacing: 9) {
-            Picker("Размер", selection: $model.searchMinimumSize) {
+            Picker("Размер", selection: $search.minimumSize) {
                 Text("Любой размер").tag(Int64(0))
                 Text("> 100 МБ").tag(Int64(100_000_000))
                 Text("> 1 ГБ").tag(Int64(1_000_000_000))
@@ -82,7 +83,7 @@ struct GlobalSearchView: View {
             .pickerStyle(.menu)
             .frame(width: 130)
 
-            Picker("Тип", selection: $model.searchKind) {
+            Picker("Тип", selection: $search.kind) {
                 ForEach(SearchKind.allCases) { kind in
                     Text(LocalizedStringKey(kind.title)).tag(kind)
                 }
@@ -92,16 +93,16 @@ struct GlobalSearchView: View {
             .frame(width: 100)
 
             Menu {
-                Button("Любая категория") { model.searchCategory = nil }
+                Button("Любая категория") { search.category = nil }
                 Divider()
                 ForEach(FileCategory.allCases) { category in
-                    Button(category.title) { model.searchCategory = category }
+                    Button(category.title) { search.category = category }
                 }
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "tag")
                         .font(.system(size: 9, weight: .semibold))
-                    Text(model.searchCategory?.title ?? "Категория")
+                    Text(search.category?.title ?? "Категория")
                         .font(.system(size: 10.5, weight: .medium))
                 }
                 .foregroundStyle(.secondary)
@@ -112,7 +113,7 @@ struct GlobalSearchView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
 
-            Picker("Дата", selection: $model.searchDateRange) {
+            Picker("Дата", selection: $search.dateRange) {
                 ForEach(SearchDateRange.allCases) { range in
                     Text(LocalizedStringKey(range.title)).tag(range)
                 }
@@ -123,7 +124,7 @@ struct GlobalSearchView: View {
 
             Spacer(minLength: 4)
 
-            Picker("Сортировка", selection: $model.searchSort) {
+            Picker("Сортировка", selection: $search.sort) {
                 ForEach(SearchSort.allCases) { sort in
                     Text(LocalizedStringKey(sort.title)).tag(sort)
                 }
@@ -133,12 +134,12 @@ struct GlobalSearchView: View {
             .frame(width: 120)
 
             Button("Сбросить") {
-                model.globalSearchText = ""
-                model.searchMinimumSize = 0
-                model.searchCategory = nil
-                model.searchKind = .any
-                model.searchDateRange = .any
-                model.searchSort = .size
+                search.text = ""
+                search.minimumSize = 0
+                search.category = nil
+                search.kind = .any
+                search.dateRange = .any
+                search.sort = .size
             }
             .buttonStyle(.plain)
             .font(.system(size: 10, weight: .medium))
@@ -150,7 +151,7 @@ struct GlobalSearchView: View {
 
     @ViewBuilder
     private var results: some View {
-        if model.searchIndexing {
+        if search.indexing {
             VStack(spacing: 10) {
                 ProgressView()
                     .controlSize(.small)
@@ -165,7 +166,7 @@ struct GlobalSearchView: View {
                 title: "Найдите что угодно",
                 message: "Имя файла или часть пути. Фильтры по размеру, типу, категории и дате помогают сузить выбор."
             )
-        } else if model.searchHits.isEmpty {
+        } else if search.hits.isEmpty {
             EmptyFolderView(
                 symbol: "questionmark.folder",
                 title: "Ничего не найдено",
@@ -174,7 +175,7 @@ struct GlobalSearchView: View {
         } else {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 4) {
-                    ForEach(model.searchHits) { hit in
+                    ForEach(search.hits) { hit in
                         SearchResultRow(
                             hit: hit,
                             query: trimmedQuery,
@@ -192,13 +193,13 @@ struct GlobalSearchView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            if model.searchTotal > 0 {
-                Text("Найдено: \(ByteFormat.count(model.searchTotal))")
+            if search.total > 0 {
+                Text("Найдено: \(ByteFormat.count(search.total))")
                     .font(.system(size: 10.5, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                if model.searchTotal > model.searchHits.count {
-                    Text("· показаны первые \(model.searchHits.count)")
+                if search.total > search.hits.count {
+                    Text("· показаны первые \(search.hits.count)")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.tertiary)
                 }
