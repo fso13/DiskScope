@@ -189,6 +189,7 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.language: AppLanguage.system.rawValue,
             AppSettingsKeys.menuBarMonitor: false,
             AppSettingsKeys.menuBarDisplay: MenuBarDisplayMode.free.rawValue,
+            AppSettingsKeys.parallelTraversal: true,
         ])
         scanHistory = ScanHistoryStore().load()
         media.attach(appModel: self)
@@ -249,7 +250,8 @@ public final class AppModel: ObservableObject {
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
         let cacheDirectory = ScanTreeCache.defaultURL.deletingLastPathComponent().path
-        let options = ScanOptions(excludedPaths: [cacheDirectory])
+        let parallel = UserDefaults.standard.object(forKey: AppSettingsKeys.parallelTraversal) as? Bool ?? true
+        let options = ScanOptions(excludedPaths: [cacheDirectory], parallelTraversal: parallel)
         scanQueue.async { [weak self] in
             guard let self else { return }
             if let cached = ScanTreeCache.shared.reusableTree(

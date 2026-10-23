@@ -28,6 +28,7 @@ public struct ScanCacheMetadata: Codable, Sendable {
     public let minimumFileSize: Int64
     public let treatsPackagesAsSingleItems: Bool
     public let excludedPaths: [String]
+    public let parallelTraversal: Bool
     public let eventID: UInt64
     public let savedAt: Date
 }
@@ -44,7 +45,7 @@ public struct ScanTreeCacheEntry: Codable, Sendable {
 
 public final class ScanTreeCache: @unchecked Sendable {
     public static let shared = ScanTreeCache()
-    public static let formatVersion = 1
+    public static let formatVersion = 2
 
     private let url: URL
     private let lock = NSLock()
@@ -85,6 +86,7 @@ public final class ScanTreeCache: @unchecked Sendable {
             minimumFileSize: options.minimumFileSize,
             treatsPackagesAsSingleItems: options.treatsPackagesAsSingleItems,
             excludedPaths: options.excludedPaths,
+            parallelTraversal: options.parallelTraversal,
             eventID: eventID,
             savedAt: Date()
         )
@@ -155,6 +157,7 @@ public final class ScanTreeCache: @unchecked Sendable {
             && metadata.minimumFileSize == options.minimumFileSize
             && metadata.treatsPackagesAsSingleItems == options.treatsPackagesAsSingleItems
             && metadata.excludedPaths == options.excludedPaths
+            && metadata.parallelTraversal == options.parallelTraversal
     }
 
     private static func isBenign(change: FSEventChange, tree: ScanTree) -> Bool {

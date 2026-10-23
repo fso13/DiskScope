@@ -385,3 +385,6 @@
 "Очистить" = "Clear";
 "Очищено" = "Cleared";
 "Кэш дерева: изменений нет" = "Tree cache: no changes";
+
+"Параллельный обход каталогов" = "Parallel directory traversal";
+"Верхнеуровневые папки сканируются одновременно. Отключите для диагностики или на медленном диске." = "Top-level folders are scanned concurrently. Turn off for diagnostics or a slow disk.";
