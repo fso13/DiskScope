@@ -112,16 +112,12 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var disk = DiskModel()
     @Published public internal(set) var history = HistoryModel()
     @Published public internal(set) var duplicates = DuplicatesModel()
-    @Published public var similarOptions = SimilarImageOptions() {
-        didSet { resetSimilar() }
-    }
-    @Published public internal(set) var similarState = SimilarImageState()
+    @Published public internal(set) var similar = SimilarModel()
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
 
     @Published public internal(set) var budget = BudgetModel()
 
-    var similarCancellation: ScanCancellation?
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
     private let rowLimit = 2500
@@ -163,6 +159,10 @@ public final class AppModel: ObservableObject {
         }.store(in: &cancellables)
         duplicates.attach { [weak self] in self?.tree }
         duplicates.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        similar.attach { [weak self] in self?.tree }
+        similar.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         trash.objectWillChange.sink { [weak self] _ in
@@ -812,11 +812,7 @@ public final class AppModel: ObservableObject {
 
     /// Fills similar-image groups without running Vision; used by snapshots.
     public func previewSimilar(_ groups: [SimilarImageGroup]) {
-        similarState = SimilarImageState()
-        similarState.groups = groups
-        similarState.candidateCount = groups.reduce(0) { $0 + $1.images.count }
-        similarState.scannedCount = similarState.candidateCount
-        similarState.progress = 1
+        similar.preview(groups)
     }
 
     /// Fills duplicate groups without hashing files; used by snapshots.
