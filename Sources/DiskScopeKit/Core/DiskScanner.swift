@@ -7,10 +7,19 @@ public struct ScanOptions: Sendable {
     public var minimumFileSize: Int64
     /// Treat .app / .photoslibrary / ... as single items in the UI.
     public var treatsPackagesAsSingleItems: Bool
+    /// Absolute paths that must not be scanned (for example the cache directory).
+    public var excludedPaths: [String]
 
-    public init(minimumFileSize: Int64 = 64 * 1024, treatsPackagesAsSingleItems: Bool = true) {
+    public init(
+        minimumFileSize: Int64 = 64 * 1024,
+        treatsPackagesAsSingleItems: Bool = true,
+        excludedPaths: [String] = []
+    ) {
         self.minimumFileSize = minimumFileSize
         self.treatsPackagesAsSingleItems = treatsPackagesAsSingleItems
+        self.excludedPaths = excludedPaths.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        }
     }
 
     public static let balanced = ScanOptions()
@@ -151,6 +160,7 @@ public final class DiskScanner {
             rootDevice: rootStat.st_dev,
             minimumFileSize: options.minimumFileSize,
             treatsPackagesAsSingleItems: options.treatsPackagesAsSingleItems,
+            excludedPaths: options.excludedPaths,
             cancellation: cancellation,
             progress: progress
         )
@@ -218,6 +228,9 @@ public final class DiskScanner {
         ) {
             if mountStatus & (mntStatusMountPoint | mntStatusTrigger) != 0 {
                 session.skippedMounts += 1
+                return
+            }
+            if session.isExcluded(name, length: nameLength) {
                 return
             }
 
@@ -513,6 +526,8 @@ private final class ScanSession {
     let rootDevice: dev_t
     let minimumFileSize: Int64
     let treatsPackagesAsSingleItems: Bool
+    let excludedPaths: [String]
+    private let excludedNames: Set<String>
     let cancellation: ScanCancellation?
     let progress: ((ScanProgress) -> Void)?
 
@@ -539,6 +554,7 @@ private final class ScanSession {
         rootDevice: dev_t,
         minimumFileSize: Int64,
         treatsPackagesAsSingleItems: Bool,
+        excludedPaths: [String],
         cancellation: ScanCancellation?,
         progress: ((ScanProgress) -> Void)?
     ) {
@@ -547,6 +563,8 @@ private final class ScanSession {
         self.rootDevice = rootDevice
         self.minimumFileSize = minimumFileSize
         self.treatsPackagesAsSingleItems = treatsPackagesAsSingleItems
+        self.excludedPaths = excludedPaths
+        self.excludedNames = Set(excludedPaths.map { URL(fileURLWithPath: $0).lastPathComponent })
         self.cancellation = cancellation
         self.progress = progress
     }
@@ -591,6 +609,15 @@ private final class ScanSession {
         if sampleSkippedPaths.count < 25, !sampleSkippedPaths.contains(path) {
             sampleSkippedPaths.append(path)
         }
+    }
+
+    func isExcluded(_ name: UnsafePointer<UInt8>, length: Int) -> Bool {
+        guard !excludedPaths.isEmpty else { return false }
+        let string = String(decoding: UnsafeBufferPointer(start: name, count: length), as: UTF8.self)
+        guard excludedNames.contains(string) else { return false }
+        let full = currentPath() + (currentPath() == "/" ? "" : "/") + string
+        let standardized = URL(fileURLWithPath: full).standardizedFileURL.path
+        return excludedPaths.contains(standardized)
     }
 
     func isPackage(_ name: UnsafePointer<UInt8>, length: Int) -> Bool {

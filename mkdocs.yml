@@ -62,6 +62,7 @@ nav:
   - Автоматизация: automation.md
   - Доступность: accessibility.md
   - Меню-бар: menu-bar.md
+  - Кэш дерева: scan-cache.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md

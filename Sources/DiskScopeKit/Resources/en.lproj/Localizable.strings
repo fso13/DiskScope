@@ -379,3 +379,9 @@
 "Свободно" = "Free";
 "Процент" = "Percent";
 "Иконка остаётся в строке меню, даже когда окно DiskScope закрыто. Клик открывает меню со свободным местом и быстрыми действиями." = "The icon stays in the menu bar even when the DiskScope window is closed. Click it for free space and quick actions.";
+
+"Кэш дерева скана" = "Scan tree cache";
+"Ускоряет повторный скан; хранится локально в Application Support." = "Speeds up rescans; stored locally in Application Support.";
+"Очистить" = "Clear";
+"Очищено" = "Cleared";
+"Кэш дерева: изменений нет" = "Tree cache: no changes";

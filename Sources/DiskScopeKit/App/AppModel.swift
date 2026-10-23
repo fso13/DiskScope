@@ -248,9 +248,21 @@ public final class AppModel: ObservableObject {
         lastScanPath = standardized
         UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
-        let options = ScanOptions()
+        let cacheDirectory = ScanTreeCache.defaultURL.deletingLastPathComponent().path
+        let options = ScanOptions(excludedPaths: [cacheDirectory])
         scanQueue.async { [weak self] in
             guard let self else { return }
+            if let cached = ScanTreeCache.shared.reusableTree(
+                rootPath: standardized,
+                options: options
+            ) {
+                DispatchQueue.main.async {
+                    guard self.activeScanID == scanID else { return }
+                    self.finishScan(cached)
+                    self.showToast("Кэш дерева: изменений нет", symbol: "bolt.horizontal.circle")
+                }
+                return
+            }
             let scanner = DiskScanner(options: options)
             do {
                 let result = try scanner.scan(path: standardized, cancellation: token, progress: { update in
@@ -262,6 +274,10 @@ public final class AppModel: ObservableObject {
                 DispatchQueue.main.async {
                     guard self.activeScanID == scanID else { return }
                     self.finishScan(result)
+                }
+                let eventID = FSEventsHistory.currentEventID()
+                DispatchQueue.global(qos: .utility).async {
+                    ScanTreeCache.shared.save(tree: result, options: options, eventID: eventID)
                 }
             } catch {
                 DispatchQueue.main.async {

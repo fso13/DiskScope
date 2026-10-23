@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.menuBarMonitor) private var menuBarMonitor = false
     @AppStorage(AppSettingsKeys.menuBarDisplay) private var menuBarDisplay = MenuBarDisplayMode.free.rawValue
     @StateObject private var updater = UpdateChecker()
+    @State private var cacheCleared = false
 
     public init() {}
 
@@ -165,6 +166,26 @@ public struct SettingsView: View {
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Divider().overlay(Theme.border)
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Кэш дерева скана")
+                        .font(.system(size: 11.5, weight: .medium))
+                    Text("Ускоряет повторный скан; хранится локально в Application Support.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(cacheCleared ? "Очищено" : "Очистить") {
+                    ScanTreeCache.shared.clear()
+                    cacheCleared = true
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(cacheCleared)
+            }
         }
     }
 
