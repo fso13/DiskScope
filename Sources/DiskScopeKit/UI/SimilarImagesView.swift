@@ -11,12 +11,12 @@ struct SimilarImagesView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 12) {
                 controlCard
-                if model.similarState.scanning {
+                if model.similar.state.scanning {
                     progressCard
-                } else if model.similarState.groups.isEmpty {
+                } else if model.similar.state.groups.isEmpty {
                     emptyCard
                 } else {
-                    ForEach(model.similarState.groups) { group in
+                    ForEach(model.similar.state.groups) { group in
                         SimilarGroupCard(group: group, selected: $selected)
                             .environmentObject(model)
                     }
@@ -26,8 +26,8 @@ struct SimilarImagesView: View {
             .padding(.bottom, 10)
         }
         .task { model.findSimilarImages() }
-        .onChange(of: model.similarState.groups) { _, _ in selected = [] }
-        .onChange(of: model.similarOptions) { _, _ in
+        .onChange(of: model.similar.state.groups) { _, _ in selected = [] }
+        .onChange(of: model.similar.options) { _, _ in
             model.findSimilarImages(force: true)
         }
     }
@@ -47,23 +47,23 @@ struct SimilarImagesView: View {
                     model.findSimilarImages(force: true)
                 } label: {
                     HStack(spacing: 5) {
-                        if model.similarState.scanning {
+                        if model.similar.state.scanning {
                             ProgressView().controlSize(.mini)
                         } else {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 9, weight: .semibold))
                         }
-                        Text(model.similarState.scanning ? "Ищем…" : "Найти")
+                        Text(model.similar.state.scanning ? "Ищем…" : "Найти")
                             .font(.system(size: 10, weight: .medium))
                     }
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
-                .disabled(model.similarState.scanning || model.tree == nil)
+                .disabled(model.similar.state.scanning || model.tree == nil)
             }
 
             HStack(spacing: 12) {
-                Picker("Порог", selection: $model.similarOptions.threshold) {
+                Picker("Порог", selection: $model.similar.options.threshold) {
                     Text("Строже").tag(Float(0.2))
                     Text("Обычно").tag(Float(0.35))
                     Text("Шире").tag(Float(0.5))
@@ -72,7 +72,7 @@ struct SimilarImagesView: View {
                 .pickerStyle(.menu)
                 .frame(width: 110)
 
-                Picker("Размер", selection: $model.similarOptions.minimumSize) {
+                Picker("Размер", selection: $model.similar.options.minimumSize) {
                     Text("от 100 КБ").tag(Int64(100_000))
                     Text("от 1 МБ").tag(Int64(1_000_000))
                     Text("от 10 МБ").tag(Int64(10_000_000))
@@ -81,10 +81,10 @@ struct SimilarImagesView: View {
                 .pickerStyle(.menu)
                 .frame(width: 120)
 
-                if !model.similarState.groups.isEmpty {
-                    statPill("Групп", ByteFormat.count(model.similarState.groups.count))
-                    statPill("Просмотрено", ByteFormat.count(model.similarState.scannedCount))
-                    statPill("Кандидатов", ByteFormat.count(model.similarState.candidateCount))
+                if !model.similar.state.groups.isEmpty {
+                    statPill("Групп", ByteFormat.count(model.similar.state.groups.count))
+                    statPill("Просмотрено", ByteFormat.count(model.similar.state.scannedCount))
+                    statPill("Кандидатов", ByteFormat.count(model.similar.state.candidateCount))
                 }
                 Spacer(minLength: 0)
             }
@@ -113,13 +113,13 @@ struct SimilarImagesView: View {
                 Text("Считаем признаки изображений")
                     .font(.system(size: 11.5, weight: .semibold))
                 Spacer()
-                Text(model.similarState.progress.formatted(.percent.precision(.fractionLength(0))))
+                Text(model.similar.state.progress.formatted(.percent.precision(.fractionLength(0))))
                     .font(.system(size: 10.5, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
             ProgressBar(
-                fraction: model.similarState.progress,
+                fraction: model.similar.state.progress,
                 tint: AnyShapeStyle(Theme.accent),
                 height: 6
             )
