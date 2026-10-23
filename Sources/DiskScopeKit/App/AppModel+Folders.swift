@@ -19,7 +19,7 @@ extension AppModel {
     }
 
     public func scanHome() {
-        scan(path: homePath)
+        scan(path: browser.homePath)
     }
 
     public func scanVolume(_ volume: VolumeInfo) {

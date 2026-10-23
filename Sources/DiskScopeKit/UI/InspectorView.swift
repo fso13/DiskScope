@@ -59,7 +59,7 @@ struct InspectorView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Выбрано объектов: \(selectedCount)")
                         .font(.system(size: 13, weight: .semibold))
-                    Text(ByteFormat.string(model.selectedSize))
+                    Text(ByteFormat.string(model.browser.selectedSize))
                         .font(AppFont.number(22))
                         .monospacedDigit()
                 }
@@ -307,7 +307,7 @@ private struct InspectorDetails: View {
         VStack(spacing: 7) {
             HStack(spacing: 6) {
                 GhostButton(title: "Finder", symbol: "magnifyingglass") {
-                    model.reveal(indices: [index])
+                    model.browser.reveal(indices: [index])
                 }
                 if node?.nodeKind == .file {
                     GhostButton(title: "Пробел", symbol: "eye") {

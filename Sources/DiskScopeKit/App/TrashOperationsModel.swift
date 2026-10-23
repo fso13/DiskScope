@@ -126,7 +126,7 @@ public final class TrashOperationsModel: ObservableObject {
             model.currentIndex = max(cursor, 0)
         }
         model.rebuildCurrentRows()
-        model.refreshVolumes()
+        model.browser.refreshVolumes()
         model.stats.refresh()
         model.invalidateCleanup()
         model.showToast(
@@ -205,7 +205,7 @@ public final class TrashOperationsModel: ObservableObject {
                 model.currentIndex = max(cursor, 0)
             }
             model.rebuildCurrentRows()
-            model.refreshVolumes()
+            model.browser.refreshVolumes()
             model.stats.refresh()
             model.invalidateCleanup()
             let bytes = groups.reduce(Int64(0)) { $0 + $1.bytes }

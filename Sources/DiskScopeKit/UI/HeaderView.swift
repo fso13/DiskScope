@@ -50,7 +50,7 @@ struct HeaderView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 3) {
-                    ForEach(Array(model.breadcrumbs.enumerated()), id: \.element) { offset, index in
+                    ForEach(Array(model.browser.breadcrumbs.enumerated()), id: \.element) { offset, index in
                         if offset > 0 {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 7, weight: .bold))
@@ -107,12 +107,12 @@ struct HeaderView: View {
     private var rootSymbol: String {
         guard let path = model.tree?.rootPath else { return "internaldrive.fill" }
         if path == "/" { return "internaldrive.fill" }
-        if path == model.homePath { return "house.fill" }
+        if path == model.browser.homePath { return "house.fill" }
         return "folder.fill"
     }
 
     private func crumbTitle(_ index: Int32) -> String {
-        if index == 0 { return model.rootDisplayName }
+        if index == 0 { return model.browser.rootDisplayName }
         guard let tree = model.tree else { return "" }
         let name = tree.name(of: index)
         return name.isEmpty ? "…" : name
@@ -169,18 +169,18 @@ struct HeaderView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(LocalizedStringKey(model.currentName))
+                Text(LocalizedStringKey(model.browser.currentName))
                     .font(.system(size: 25, weight: .semibold))
                     .tracking(-0.4)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
                 HStack(spacing: 6) {
-                    StatPill(symbol: "internaldrive", text: ByteFormat.string(model.currentSize))
-                    StatPill(symbol: "doc.on.doc", text: Plural.files(model.currentItemCount))
-                    StatPill(symbol: "square.stack.3d.up", text: Plural.elements(model.currentDirectCount))
+                    StatPill(symbol: "internaldrive", text: ByteFormat.string(model.browser.currentSize))
+                    StatPill(symbol: "doc.on.doc", text: Plural.files(model.browser.currentItemCount))
+                    StatPill(symbol: "square.stack.3d.up", text: Plural.elements(model.browser.currentDirectCount))
                     if model.currentIndex != 0, let tree = model.tree {
-                        Text("\(ByteFormat.percent(model.currentSize, of: tree.totalSize)) от скана")
+                        Text("\(ByteFormat.percent(model.browser.currentSize, of: tree.totalSize)) от скана")
                             .font(.system(size: 10.5, weight: .medium))
                             .foregroundStyle(.tertiary)
                     }
@@ -195,7 +195,7 @@ struct HeaderView: View {
         HStack(spacing: 5) {
             Menu {
                 Button("Сканировать снова") { model.rescan() }
-                Button("Текущую папку") { model.scan(path: model.currentPath) }
+                Button("Текущую папку") { model.scan(path: model.browser.currentPath) }
                     .disabled(model.currentIndex == 0)
                 Divider()
                 Button("Домашняя папка") { model.scanHome() }
@@ -236,7 +236,7 @@ struct HeaderView: View {
                 .frame(width: 1, height: 18)
                 .padding(.horizontal, 3)
 
-            IconActionButton(symbol: "arrow.up", help: "Наверх (⌘↑)", disabled: !model.canGoUp) {
+            IconActionButton(symbol: "arrow.up", help: "Наверх (⌘↑)", disabled: !model.browser.canGoUp) {
                 model.goUp()
             }
 
@@ -247,9 +247,9 @@ struct HeaderView: View {
                     : "Показать выбранное в Finder (⇧⌘R)"
             ) {
                 if model.selection.isEmpty {
-                    model.revealCurrentFolder()
+                    model.browser.revealCurrentFolder()
                 } else {
-                    model.revealSelection()
+                    model.browser.revealSelection()
                 }
             }
 

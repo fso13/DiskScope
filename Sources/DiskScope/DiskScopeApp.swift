@@ -116,12 +116,12 @@ struct DiskScopeApp: App {
                 Divider()
                 Button("Наверх") { model.goUp() }
                     .keyboardShortcut(.upArrow, modifiers: .command)
-                    .disabled(!model.canGoUp)
+                    .disabled(!model.browser.canGoUp)
                 Button("Показать в Finder") {
                     if model.selection.isEmpty {
-                        model.revealCurrentFolder()
+                        model.browser.revealCurrentFolder()
                     } else {
-                        model.revealSelection()
+                        model.browser.revealSelection()
                     }
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])

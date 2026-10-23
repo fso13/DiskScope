@@ -104,7 +104,7 @@ public final class CleanupOperationsModel: ObservableObject {
             model.currentIndex = max(cursor, 0)
         }
         model.rebuildCurrentRows()
-        model.refreshVolumes()
+        model.browser.refreshVolumes()
         model.stats.refresh()
         model.invalidateCleanup()
 

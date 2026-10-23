@@ -312,7 +312,7 @@ final class SnapshotRenderer {
         render(model: model, named: "07-welcome-dark", dark: true)
 
         model.preview.scanning(
-            path: model.homePath + "/Library/Application Support",
+            path: model.browser.homePath + "/Library/Application Support",
             progress: ScanProgress(
                 entries: 2_148_932,
                 files: 1_842_010,

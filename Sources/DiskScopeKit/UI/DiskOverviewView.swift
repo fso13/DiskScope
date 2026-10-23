@@ -25,7 +25,7 @@ struct DiskOverviewView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(overview?.volume.name ?? model.internalVolume?.name ?? "Macintosh HD")
+                    Text(overview?.volume.name ?? model.browser.internalVolume?.name ?? "Macintosh HD")
                         .font(.system(size: 12.5, weight: .semibold))
                     Text("Занято, свободно и purgeable")
                         .font(.system(size: 10.5))

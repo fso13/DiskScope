@@ -47,7 +47,7 @@ struct SidebarView: View {
 
     private var volumeCard: some View {
         Button {
-            if let volume = model.internalVolume {
+            if let volume = model.browser.internalVolume {
                 model.scanVolume(volume)
             }
         } label: {
@@ -56,19 +56,19 @@ struct SidebarView: View {
                     Image(systemName: "internaldrive.fill")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.65))
-                    Text(model.internalVolume?.name ?? "Macintosh HD")
+                    Text(model.browser.internalVolume?.name ?? "Macintosh HD")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.92))
                         .lineLimit(1)
                     Spacer(minLength: 4)
-                    if let volume = model.internalVolume {
+                    if let volume = model.browser.internalVolume {
                         Text(ByteFormat.percent(volume.usedBytes, of: volume.totalBytes))
                             .font(AppFont.number(13))
                             .foregroundStyle(.white.opacity(0.9))
                     }
                 }
 
-                if let volume = model.internalVolume {
+                if let volume = model.browser.internalVolume {
                     ProgressBar(
                         fraction: volume.usedFraction,
                         tint: AnyShapeStyle(
@@ -140,7 +140,7 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .focusable(false)
         .focusEffectDisabled()
-        .help("Сканировать \(model.internalVolume?.name ?? "диск")")
+        .help("Сканировать \(model.browser.internalVolume?.name ?? "диск")")
     }
 
     private var quickAccess: some View {
@@ -212,7 +212,7 @@ struct SidebarView: View {
                     .frame(width: 5, height: 5)
                 Text(model.isScanning
                     ? L10n.t("Сканирование…")
-                    : (L10n.isEnglish ? "Free \(model.freeSpaceText)" : "Свободно \(model.freeSpaceText)"))
+                    : (L10n.isEnglish ? "Free \(model.browser.freeSpaceText)" : "Свободно \(model.browser.freeSpaceText)"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.55))
                 Spacer(minLength: 0)
@@ -220,7 +220,7 @@ struct SidebarView: View {
                     Button("Выбрать папку…") { model.chooseFolder() }
                     Button("Полная картина диска…") { model.showDiskOverview() }
                     Button("История сканов…") { model.history.show = true }
-                    Button("Полный доступ к диску…") { model.openFullDiskAccessSettings() }
+                    Button("Полный доступ к диску…") { model.browser.openFullDiskAccessSettings() }
                     Divider()
                     Button("О программе DiskScope") {
                         NSApp.orderFrontStandardAboutPanel(nil)

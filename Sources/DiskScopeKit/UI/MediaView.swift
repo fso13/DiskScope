@@ -117,7 +117,7 @@ struct MediaView: View {
                     ForEach(media.sources, id: \.path) { url in
                         MediaSourceRow(
                             url: url,
-                            homePath: model.homePath,
+                            homePath: model.browser.homePath,
                             disabled: media.isBusy
                         ) {
                             media.removeSource(url)
@@ -595,9 +595,9 @@ struct MediaView: View {
 
     private func abbreviate(_ path: String) -> String {
         guard !path.isEmpty else { return "" }
-        if path == model.homePath { return "~" }
-        if path.hasPrefix(model.homePath + "/") {
-            return "~" + path.dropFirst(model.homePath.count)
+        if path == model.browser.homePath { return "~" }
+        if path.hasPrefix(model.browser.homePath + "/") {
+            return "~" + path.dropFirst(model.browser.homePath.count)
         }
         return path
     }

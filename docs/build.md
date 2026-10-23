@@ -95,7 +95,7 @@ MKDOCS_SITE_URL=http://localhost:8000/ .venv/bin/mkdocs build --strict
 
 ## Тесты
 
-161 XCTest-тест покрывает:
+165 XCTest-тестов покрывают:
 
 - сканер и точность суммы против `du`;
 - агрегацию мелких файлов, пакеты, симлинки, Unicode-имена;
@@ -115,7 +115,7 @@ Sources/
   DiskScopeKit/
     Core/        сканер, дерево, форматирование, treemap-раскладка
     UI/          SwiftUI-интерфейс
-    App/         AppModel
+    App/         AppModel и feature-модели
   DiskScope/     точка входа приложения
   DiskScopeCLI/  headless-сканер
   DiskScopeSnapshots/  рендер интерфейса в PNG

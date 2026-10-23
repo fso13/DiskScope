@@ -72,9 +72,9 @@ struct ChildrenTable: View {
             if let first = selection.first {
                 let isAggregate = model.tree?.node(first).nodeKind == .aggregate
                 let isContainer = model.tree?.node(first).nodeKind.isContainer == true
-                Button("Открыть") { model.openRow(first) }
+                Button("Открыть") { model.browser.openRow(first) }
                     .disabled(isAggregate)
-                Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
+                Button("Показать в Finder") { model.browser.reveal(indices: Array(selection)) }
                 if !isContainer {
                     Button("Быстрый просмотр") { model.inspector.previewNode(first) }
                 }
@@ -102,7 +102,7 @@ struct ChildrenTable: View {
             }
         } primaryAction: { selection in
             if let first = selection.first {
-                model.activateRow(first)
+                model.browser.activateRow(first)
             }
         }
     }
@@ -163,7 +163,7 @@ struct MapView: View {
             HStack(spacing: 8) {
                 Text("Карта папки")
                     .font(.system(size: 11.5, weight: .semibold))
-                Text("· \(Plural.elements(model.currentDirectCount))")
+                Text("· \(Plural.elements(model.browser.currentDirectCount))")
                     .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
                 Spacer()
