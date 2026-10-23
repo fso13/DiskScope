@@ -270,5 +270,5 @@ jobs:
             echo "| SHA-256 DMG | \`${DMG_SHA256}\` |"
             echo "| SHA-256 ZIP | \`${ZIP_SHA256}\` |"
             echo "| Архитектуры | arm64 + x86_64 |"
-            echo "| Тесты | 137 XCTest |"
+            echo "| Тесты | 139 XCTest |"
           } >> "$GITHUB_STEP_SUMMARY"
