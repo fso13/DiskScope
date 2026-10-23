@@ -273,7 +273,7 @@ private struct DuplicateGroupCard: View {
                 model.reveal(indices: [file.index])
             }
             IconActionButton(symbol: "eye", help: "Быстрый просмотр") {
-                model.previewNode(file.index)
+                model.inspector.previewNode(file.index)
             }
         }
         .padding(.horizontal, 14)

@@ -507,7 +507,7 @@ struct CommandPaletteView: View {
                     model.showInspector.toggle()
                 }
             )
-            if model.canQuickLook {
+            if model.inspector.canQuickLook {
                 items.append(
                     PaletteCommand(
                         id: "quick-look",
@@ -516,7 +516,7 @@ struct CommandPaletteView: View {
                         symbol: "eye",
                         shortcut: "⌘Y"
                     ) {
-                        model.previewSelection()
+                        model.inspector.previewSelection()
                     }
                 )
             }

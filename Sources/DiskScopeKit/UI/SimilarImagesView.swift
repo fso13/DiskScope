@@ -256,7 +256,7 @@ private struct SimilarGroupCard: View {
                 model.reveal(indices: [image.index])
             }
             IconActionButton(symbol: "eye", help: "Быстрый просмотр") {
-                model.previewNode(image.index)
+                model.inspector.previewNode(image.index)
             }
         }
         .padding(.horizontal, 14)

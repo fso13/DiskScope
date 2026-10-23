@@ -86,7 +86,7 @@ struct TreemapView: View {
                     }
                     .onKeyPress(.space) {
                         if let keyboardNode, tree.node(keyboardNode).nodeKind == .file {
-                            model.previewNode(keyboardNode)
+                            model.inspector.previewNode(keyboardNode)
                         }
                         return .handled
                     }
@@ -145,9 +145,9 @@ struct TreemapView: View {
             if let node = previewNode, isValid(node: node) {
                 Button("Открыть") { model.openRow(node) }
                 Button("Показать в Finder") { model.reveal(indices: [node]) }
-                Button("Быстрый просмотр") { model.previewNode(node) }
-                Button("Копировать путь") { model.copyPaths([node]) }
-                Button("Открыть в терминале") { model.openInTerminal(node) }
+                Button("Быстрый просмотр") { model.inspector.previewNode(node) }
+                Button("Копировать путь") { model.inspector.copyPaths([node]) }
+                Button("Открыть в терминале") { model.inspector.openInTerminal(node) }
                 Divider()
                 Button(model.isInCollection(node) ? "Убрать из коллекции" : "В коллекцию") {
                     model.toggleCollection([node])

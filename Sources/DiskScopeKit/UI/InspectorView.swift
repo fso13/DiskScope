@@ -12,7 +12,7 @@ struct InspectorView: View {
 
             if selectedCount > 1 {
                 multiSelection
-            } else if let index = model.inspectorNode {
+            } else if let index = model.inspector.inspectorNode {
                 InspectorDetails(index: index)
                     .environmentObject(model)
             } else {
@@ -83,7 +83,7 @@ struct InspectorView: View {
 
                 HStack(spacing: 6) {
                     GhostButton(title: "Копировать пути", symbol: "doc.on.doc") {
-                        model.copyPaths(Array(model.selection))
+                        model.inspector.copyPaths(Array(model.selection))
                     }
                     GhostButton(title: "В коллекцию", symbol: "tray.full") {
                         model.addToCollection(Array(model.selection))
@@ -99,21 +99,14 @@ struct InspectorView: View {
     }
 }
 
-private struct FileMetadata {
-    let logicalSize: Int64?
-    let created: Date?
-    let modified: Date?
-    let isPackage: Bool
-}
-
 private struct InspectorDetails: View {
     @EnvironmentObject private var model: AppModel
     let index: Int32
-    @State private var metadata: FileMetadata?
     @State private var budgetEditing = false
     @State private var budgetText = ""
 
     private var tree: ScanTree? { model.tree }
+    private var metadata: FileMetadata? { model.inspector.metadata(for: index) }
     private var node: ScanNode? {
         guard let tree, index >= 0, Int(index) < tree.count else { return nil }
         return tree.node(index)
@@ -138,7 +131,7 @@ private struct InspectorDetails: View {
             .padding(12)
         }
         .task(id: index) {
-            await loadMetadata()
+            model.inspector.loadMetadata(for: index)
         }
     }
 
@@ -318,16 +311,16 @@ private struct InspectorDetails: View {
                 }
                 if node?.nodeKind == .file {
                     GhostButton(title: "Пробел", symbol: "eye") {
-                        model.previewNode(index)
+                        model.inspector.previewNode(index)
                     }
                 }
             }
             HStack(spacing: 6) {
                 GhostButton(title: "Копировать путь", symbol: "doc.on.doc") {
-                    model.copyPaths([index])
+                    model.inspector.copyPaths([index])
                 }
                 GhostButton(title: "Терминал", symbol: "terminal") {
-                    model.openInTerminal(index)
+                    model.inspector.openInTerminal(index)
                 }
             }
             GhostButton(
@@ -397,30 +390,5 @@ private struct InspectorDetails: View {
     private func dateText(_ date: Date?) -> String {
         guard let date else { return "—" }
         return date.formatted(date: .abbreviated, time: .shortened)
-    }
-
-    private func loadMetadata() async {
-        guard let tree, index > 0, Int(index) < tree.count else {
-            metadata = nil
-            return
-        }
-        let node = tree.node(index)
-        guard node.nodeKind != .aggregate else {
-            metadata = nil
-            return
-        }
-        let url = tree.url(of: index)
-        let values = try? url.resourceValues(forKeys: [
-            .fileSizeKey,
-            .creationDateKey,
-            .contentModificationDateKey,
-            .isPackageKey,
-        ])
-        metadata = FileMetadata(
-            logicalSize: values?.fileSize.map(Int64.init),
-            created: values?.creationDate,
-            modified: values?.contentModificationDate,
-            isPackage: values?.isPackage ?? false
-        )
     }
 }

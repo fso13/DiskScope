@@ -65,7 +65,7 @@ struct ChildrenTable: View {
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .scrollContentBackground(.hidden)
         .onKeyPress(.space) {
-            model.previewSelection()
+            model.inspector.previewSelection()
             return .handled
         }
         .contextMenu(forSelectionType: Int32.self) { selection in
@@ -76,15 +76,15 @@ struct ChildrenTable: View {
                     .disabled(isAggregate)
                 Button("Показать в Finder") { model.reveal(indices: Array(selection)) }
                 if !isContainer {
-                    Button("Быстрый просмотр") { model.previewNode(first) }
+                    Button("Быстрый просмотр") { model.inspector.previewNode(first) }
                 }
                 if isContainer {
                     Button("Сканировать эту папку") {
                         if let path = model.tree?.path(of: first) { model.scan(path: path) }
                     }
                 }
-                Button("Копировать путь") { model.copyPaths(Array(selection)) }
-                Button("Открыть в терминале") { model.openInTerminal(first) }
+                Button("Копировать путь") { model.inspector.copyPaths(Array(selection)) }
+                Button("Открыть в терминале") { model.inspector.openInTerminal(first) }
                 let allCollected = selection.allSatisfy { model.isInCollection($0) }
                 Button(allCollected ? "Убрать из коллекции" : "В коллекцию") {
                     if allCollected {
