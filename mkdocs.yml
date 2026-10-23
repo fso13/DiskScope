@@ -66,6 +66,7 @@ nav:
   - Параллельный обход: parallel-scan.md
   - Бюджеты папок: folder-budgets.md
   - Заброшенные файлы: stale-files.md
+  - APFS-клоны: apfs-clones.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
