@@ -32,12 +32,15 @@ jobs:
           xcodebuild -version
 
       - name: Import Developer ID certificate
-        if: ${{ secrets.MACOS_CERTIFICATE != '' }}
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
+          if [ -z "${MACOS_CERTIFICATE:-}" ]; then
+            echo "Skipping certificate import: MACOS_CERTIFICATE is not configured"
+            exit 0
+          fi
           echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
           KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
           security create-keychain -p actions "$KEYCHAIN"
@@ -115,13 +118,16 @@ jobs:
           hdiutil detach "$MOUNT" >/dev/null
 
       - name: Notarize app and DMG
-        if: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_PASSWORD != '' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           set -euo pipefail
+          if [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_APP_PASSWORD:-}" ]; then
+            echo "Skipping notarization: Apple credentials are not configured"
+            exit 0
+          fi
           ./scripts/notarize.sh dist/DiskScope.app dist/DiskScope.dmg
           ditto -c -k --keepParent dist/DiskScope.app "dist/${ARCHIVE_NAME}"
           cp "dist/${ARCHIVE_NAME}" "dist/${STABLE_ZIP}"
@@ -130,11 +136,14 @@ jobs:
           echo "ZIP_SHA256=$(awk 'NR==2 {print $1}' dist/SHA256SUMS.txt)" >> "$GITHUB_ENV"
 
       - name: Generate Sparkle appcast
-        if: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "${SPARKLE_PRIVATE_KEY:-}" ]; then
+            echo "Skipping appcast: SPARKLE_PRIVATE_KEY is not configured"
+            exit 0
+          fi
           TOOL=".build/artifacts/sparkle/Sparkle/bin/generate_keys"
           echo "$SPARKLE_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sparkle.key"
           "$TOOL" -f "$RUNNER_TEMP/sparkle.key"
