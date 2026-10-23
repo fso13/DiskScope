@@ -187,6 +187,8 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.appearance: AppAppearance.system.rawValue,
             AppSettingsKeys.confirmTrash: true,
             AppSettingsKeys.language: AppLanguage.system.rawValue,
+            AppSettingsKeys.menuBarMonitor: false,
+            AppSettingsKeys.menuBarDisplay: MenuBarDisplayMode.free.rawValue,
         ])
         scanHistory = ScanHistoryStore().load()
         media.attach(appModel: self)

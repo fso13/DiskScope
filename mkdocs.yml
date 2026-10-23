@@ -61,6 +61,7 @@ nav:
   - CLI: cli.md
   - Автоматизация: automation.md
   - Доступность: accessibility.md
+  - Меню-бар: menu-bar.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md

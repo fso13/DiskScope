@@ -5,6 +5,8 @@ public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.appearance) private var appearance = AppAppearance.system.rawValue
     @AppStorage(AppSettingsKeys.confirmTrash) private var confirmTrash = true
     @AppStorage(AppSettingsKeys.language) private var language = AppLanguage.system.rawValue
+    @AppStorage(AppSettingsKeys.menuBarMonitor) private var menuBarMonitor = false
+    @AppStorage(AppSettingsKeys.menuBarDisplay) private var menuBarDisplay = MenuBarDisplayMode.free.rawValue
     @StateObject private var updater = UpdateChecker()
 
     public init() {}
@@ -16,6 +18,7 @@ public struct SettingsView: View {
                 VStack(spacing: 14) {
                     appearanceSection
                     languageSection
+                    menuBarSection
                     scanningSection
                     updatesSection
                     aboutSection
@@ -89,6 +92,34 @@ public struct SettingsView: View {
                 .font(.system(size: 10.5))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var menuBarSection: some View {
+        SettingsCard(title: "Меню-бар", symbol: "menubar.rectangle") {
+            Toggle("Показывать свободное место", isOn: $menuBarMonitor)
+                .toggleStyle(.switch)
+                .font(.system(size: 11.5, weight: .medium))
+
+            Picker("Отображение", selection: $menuBarDisplay) {
+                ForEach(MenuBarDisplayMode.allCases) { mode in
+                    Text(LocalizedStringKey(mode.title)).tag(mode.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .disabled(!menuBarMonitor)
+
+            Text("Иконка остаётся в строке меню, даже когда окно DiskScope закрыто. Клик открывает меню со свободным местом и быстрыми действиями.")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: menuBarMonitor) { _, _ in
+            NotificationCenter.default.post(name: .menuBarSettingsChanged, object: nil)
+        }
+        .onChange(of: menuBarDisplay) { _, _ in
+            NotificationCenter.default.post(name: .menuBarSettingsChanged, object: nil)
         }
     }
 

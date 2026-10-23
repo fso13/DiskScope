@@ -1,9 +1,15 @@
 import SwiftUI
 
-enum AppSettingsKeys {
-    static let appearance = "app.settings.appearance"
-    static let confirmTrash = "app.settings.confirmTrash"
-    static let language = "app.settings.language"
+public enum AppSettingsKeys {
+    public static let appearance = "app.settings.appearance"
+    public static let confirmTrash = "app.settings.confirmTrash"
+    public static let language = "app.settings.language"
+    public static let menuBarMonitor = "app.settings.menuBarMonitor"
+    public static let menuBarDisplay = "app.settings.menuBarDisplay"
+}
+
+public extension Notification.Name {
+    static let menuBarSettingsChanged = Notification.Name("DiskScopeMenuBarSettingsChanged")
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {
