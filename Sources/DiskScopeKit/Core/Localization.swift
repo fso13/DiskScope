@@ -36,6 +36,10 @@ public enum L10n {
 
     private static var englishBundles: [Bundle] {
         var result: [Bundle] = []
+        if let path = Bundle.module.path(forResource: "en", ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            result.append(bundle)
+        }
         if let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
            let bundle = Bundle(path: path) {
             result.append(bundle)
