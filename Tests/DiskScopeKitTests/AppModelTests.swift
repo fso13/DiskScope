@@ -66,7 +66,7 @@ final class AppModelTests: XCTestCase {
         let ready = expectation(description: "scan finished")
         var bag = Set<AnyCancellable>()
         let derived = expectation(description: "derived stats finished")
-        model.$phase
+        model.scan.$phase
             .dropFirst()
             .sink { phase in
                 if phase == .ready { ready.fulfill() }

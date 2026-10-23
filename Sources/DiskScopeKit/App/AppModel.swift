@@ -75,8 +75,7 @@ public final class AppModel: ObservableObject {
         public let symbol: String
     }
 
-    @Published public private(set) var phase: Phase = .welcome
-    @Published public private(set) var tree: ScanTree?
+    @Published public internal(set) var scan = ScanController()
     @Published public private(set) var currentIndex: Int32 = 0
     @Published public var tab: Tab = .map {
         didSet {
@@ -86,7 +85,7 @@ public final class AppModel: ObservableObject {
         }
     }
     @Published public var selection: Set<Int32> = []
-    @Published public private(set) var progress: ScanProgress?
+
     @Published public private(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
     @Published public private(set) var fileCount = 0
     @Published public private(set) var folderCount = 0
@@ -128,15 +127,11 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var similarState = SimilarImageState()
     @Published public var showInspector = false
     @Published public var quickLookURL: URL?
-    @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
     @Published public internal(set) var budget = BudgetModel()
 
-    private var cancellation: ScanCancellation?
     var duplicateCancellation: ScanCancellation?
     var similarCancellation: ScanCancellation?
-    private var activeScanID = UUID()
-    private let scanQueue = DispatchQueue(label: "ru.diskscope.scan", qos: .userInitiated)
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
     private let rowLimit = 2500
@@ -175,6 +170,9 @@ public final class AppModel: ObservableObject {
         cleanupCancellable = cleanup.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
+        scan.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
         disk.attach { [weak self] in self?.internalVolume }
         diskCancellable = disk.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -192,6 +190,25 @@ public final class AppModel: ObservableObject {
         }.store(in: &cancellables)
         media.attach(appModel: self)
     }
+
+    // MARK: - Scan compatibility
+
+    public var phase: Phase {
+        get { scan.phase }
+        set { scan.phase = newValue }
+    }
+
+    public var tree: ScanTree? {
+        get { scan.tree }
+        set { scan.tree = newValue }
+    }
+
+    public var progress: ScanProgress? {
+        get { scan.progress }
+        set { scan.progress = newValue }
+    }
+
+    public var lastScanPath: String? { scan.lastScanPath }
 
     // MARK: - Derived state
 
@@ -227,14 +244,6 @@ public final class AppModel: ObservableObject {
             standardized = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL.path
         }
 
-        cancellation?.cancel()
-        let token = ScanCancellation()
-        cancellation = token
-        activeScanID = UUID()
-        let scanID = activeScanID
-
-        phase = .scanning
-        progress = ScanProgress(currentPath: standardized)
         selection = []
         categoryFilter = nil
         searchText = ""
@@ -244,48 +253,24 @@ public final class AppModel: ObservableObject {
         search.reset()
         resetDuplicates()
         resetSimilar()
-        lastScanPath = standardized
-        UserDefaults.standard.set(standardized, forKey: "lastScanPath")
 
         let cacheDirectory = ScanTreeCache.defaultURL.deletingLastPathComponent().path
         let parallel = UserDefaults.standard.object(forKey: AppSettingsKeys.parallelTraversal) as? Bool ?? true
         let options = ScanOptions(excludedPaths: [cacheDirectory], parallelTraversal: parallel)
-        scanQueue.async { [weak self] in
-            guard let self else { return }
-            if let cached = ScanTreeCache.shared.reusableTree(
-                rootPath: standardized,
-                options: options
-            ) {
-                DispatchQueue.main.async {
-                    guard self.activeScanID == scanID else { return }
-                    self.finishScan(cached)
+        scan.start(
+            path: standardized,
+            options: options,
+            onResult: { [weak self] result, cached in
+                guard let self else { return }
+                self.finishScan(result)
+                if cached {
                     self.showToast("Кэш дерева: изменений нет", symbol: "bolt.horizontal.circle")
                 }
-                return
+            },
+            onFailure: { [weak self] error, cancelled in
+                self?.failScan(error, wasCancelled: cancelled)
             }
-            let scanner = DiskScanner(options: options)
-            do {
-                let result = try scanner.scan(path: standardized, cancellation: token, progress: { update in
-                    DispatchQueue.main.async {
-                        guard self.activeScanID == scanID else { return }
-                        self.progress = update
-                    }
-                })
-                DispatchQueue.main.async {
-                    guard self.activeScanID == scanID else { return }
-                    self.finishScan(result)
-                }
-                let eventID = FSEventsHistory.currentEventID()
-                DispatchQueue.global(qos: .utility).async {
-                    ScanTreeCache.shared.save(tree: result, options: options, eventID: eventID)
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    guard self.activeScanID == scanID else { return }
-                    self.failScan(error, wasCancelled: token.isCancelled)
-                }
-            }
-        }
+        )
     }
 
     public func rescan() {
@@ -299,20 +284,14 @@ public final class AppModel: ObservableObject {
     }
 
     public func cancelScan() {
-        cancellation?.cancel()
-        cancellation = nil
-        activeScanID = UUID()
-        progress = nil
-        phase = tree == nil ? .welcome : .ready
+        scan.cancel()
         if tab == .cleanup {
             loadCleanupSuggestionsIfNeeded()
         }
     }
 
     private func finishScan(_ result: ScanTree) {
-        tree = result
-        phase = .ready
-        progress = nil
+        scan.finish(result)
         currentIndex = 0
         selection = []
         tab = .map
@@ -331,7 +310,7 @@ public final class AppModel: ObservableObject {
             phase = tree == nil ? .welcome : .ready
             return
         }
-        phase = .failed(error.localizedDescription)
+        scan.fail(error)
         errorMessage = error.localizedDescription
     }
 
@@ -808,12 +787,9 @@ public final class AppModel: ObservableObject {
     // MARK: - Previews / snapshots
 
     public func loadPreview(tree: ScanTree) {
-        activeScanID = UUID()
-        cancellation?.cancel()
-        self.tree = tree
-        phase = .ready
+        scan.invalidate()
+        scan.finish(tree)
         currentIndex = 0
-        progress = nil
         tab = .map
         selection = []
         resetTrashUndo()
@@ -861,10 +837,8 @@ public final class AppModel: ObservableObject {
     }
 
     public func previewScanning(path: String, progress: ScanProgress) {
-        tree = nil
-        phase = .scanning
+        scan.previewScanning(path: path, progress: progress)
         currentIndex = 0
-        self.progress = progress
         resetTrashUndo()
         resetCleanup()
         resetCollection()
@@ -875,9 +849,7 @@ public final class AppModel: ObservableObject {
     }
 
     public func previewWelcome() {
-        tree = nil
-        phase = .welcome
-        progress = nil
+        scan.previewWelcome()
         currentIndex = 0
         resetTrashUndo()
         resetCleanup()
