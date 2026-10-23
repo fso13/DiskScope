@@ -75,7 +75,7 @@ public final class AppModel: ObservableObject {
         public let symbol: String
     }
 
-    @Published public internal(set) var scan = ScanController()
+    @Published public internal(set) var scan: ScanController
     @Published public private(set) var currentIndex: Int32 = 0
     @Published public var tab: Tab = .map {
         didSet {
@@ -110,7 +110,7 @@ public final class AppModel: ObservableObject {
     @Published public var showCollection = false
     @Published public internal(set) var search = SearchModel()
     @Published public internal(set) var disk = DiskModel()
-    @Published public internal(set) var history = HistoryModel()
+    @Published public internal(set) var history: HistoryModel
     @Published public internal(set) var duplicates = DuplicatesModel()
     @Published public internal(set) var similar = SimilarModel()
     @Published public var showInspector = false
@@ -126,7 +126,9 @@ public final class AppModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var searchCancellable: AnyCancellable?
 
-    public init() {
+    public init(services: AppServices = .live) {
+        scan = ScanController(cache: services.cache, scannerFactory: services.scannerFactory)
+        history = HistoryModel(store: services.historyStore)
         UserDefaults.standard.register(defaults: [
             AppSettingsKeys.appearance: AppAppearance.system.rawValue,
             AppSettingsKeys.confirmTrash: true,
@@ -264,7 +266,7 @@ public final class AppModel: ObservableObject {
         resetDuplicates()
         resetSimilar()
 
-        let cacheDirectory = ScanTreeCache.defaultURL.deletingLastPathComponent().path
+        let cacheDirectory = scan.cacheDirectory
         let parallel = UserDefaults.standard.object(forKey: AppSettingsKeys.parallelTraversal) as? Bool ?? true
         let options = ScanOptions(excludedPaths: [cacheDirectory], parallelTraversal: parallel)
         scan.start(

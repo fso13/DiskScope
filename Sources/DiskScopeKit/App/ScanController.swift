@@ -12,8 +12,20 @@ public final class ScanController: ObservableObject {
     private var cancellation: ScanCancellation?
     private var activeScanID = UUID()
     private let queue = DispatchQueue(label: "ru.diskscope.scan", qos: .userInitiated)
+    private let cache: ScanTreeCache
+    private let makeScanner: (ScanOptions) -> DiskScanner
 
-    public init() {}
+    public init(
+        cache: ScanTreeCache = .shared,
+        scannerFactory: @escaping (ScanOptions) -> DiskScanner = { DiskScanner(options: $0) }
+    ) {
+        self.cache = cache
+        self.makeScanner = scannerFactory
+    }
+
+    var cacheDirectory: String {
+        cache.fileURL.deletingLastPathComponent().path
+    }
 
     func start(
         path: String,
@@ -33,7 +45,7 @@ public final class ScanController: ObservableObject {
 
         queue.async { [weak self] in
             guard let self else { return }
-            if let cached = ScanTreeCache.shared.reusableTree(rootPath: path, options: options) {
+            if let cached = self.cache.reusableTree(rootPath: path, options: options) {
                 DispatchQueue.main.async {
                     guard self.activeScanID == scanID else { return }
                     self.progress = nil
@@ -42,7 +54,7 @@ public final class ScanController: ObservableObject {
                 return
             }
 
-            let scanner = DiskScanner(options: options)
+            let scanner = makeScanner(options)
             do {
                 let result = try scanner.scan(path: path, cancellation: token, progress: { update in
                     DispatchQueue.main.async {
@@ -52,7 +64,7 @@ public final class ScanController: ObservableObject {
                 })
                 let eventID = FSEventsHistory.currentEventID()
                 DispatchQueue.global(qos: .utility).async {
-                    ScanTreeCache.shared.save(tree: result, options: options, eventID: eventID)
+                    self.cache.save(tree: result, options: options, eventID: eventID)
                 }
                 DispatchQueue.main.async {
                     guard self.activeScanID == scanID else { return }
