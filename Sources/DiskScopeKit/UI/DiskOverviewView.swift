@@ -19,7 +19,7 @@ struct DiskOverviewView: View {
         }
     }
 
-    private var overview: DiskOverview? { model.diskOverview }
+    private var overview: DiskOverview? { model.disk.overview }
 
     private var capacityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -36,7 +36,7 @@ struct DiskOverviewView: View {
                     model.refreshDiskOverview(force: true)
                 } label: {
                     HStack(spacing: 5) {
-                        if model.diskOverviewLoading {
+                        if model.disk.loading {
                             ProgressView().controlSize(.mini)
                         } else {
                             Image(systemName: "arrow.clockwise")
@@ -48,7 +48,7 @@ struct DiskOverviewView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
-                .disabled(model.diskOverviewLoading)
+                .disabled(model.disk.loading)
             }
 
             if let overview {
@@ -63,13 +63,13 @@ struct DiskOverviewView: View {
                     legend("Purgeable", color: .purple, value: reclaimable(overview))
                     legend("Свободно", color: .green, value: overview.freeBytes)
                 }
-            } else if model.diskOverviewLoading {
+            } else if model.disk.loading {
                 ProgressView("Считаем место…")
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
             } else {
-                Text(model.diskOverviewError ?? "Нет данных о диске")
+                Text(model.disk.error ?? "Нет данных о диске")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -316,8 +316,8 @@ struct DiskOverviewView: View {
     }
 
     private var snapshotEmptyText: String {
-        if model.diskOverviewLoading { return "Проверяем снимки…" }
-        if let overview = model.diskOverview, !overview.snapshotsAvailable {
+        if model.disk.loading { return "Проверяем снимки…" }
+        if let overview = model.disk.overview, !overview.snapshotsAvailable {
             return "Не удалось прочитать снимки через tmutil"
         }
         return "Локальных снимков нет"

@@ -112,9 +112,7 @@ public final class AppModel: ObservableObject {
     @Published public var showCollection = false
     @Published public var showCollectionTrashConfirmation = false
     @Published public internal(set) var search = SearchModel()
-    @Published public internal(set) var diskOverview: DiskOverview?
-    @Published public internal(set) var diskOverviewLoading = false
-    @Published public internal(set) var diskOverviewError: String?
+    @Published public internal(set) var disk = DiskModel()
     @Published public internal(set) var scanHistory: [ScanHistoryEntry] = []
     @Published public var showHistory = false
     @Published public internal(set) var duplicateGroups: [DuplicateGroup] = []
@@ -133,8 +131,7 @@ public final class AppModel: ObservableObject {
     @Published public var quickLookURL: URL?
     @Published public private(set) var lastScanPath: String? = UserDefaults.standard.string(forKey: "lastScanPath")
 
-    @Published public internal(set) var folderBudgets: [FolderBudget] = FolderBudgetStore.load()
-    private var budgetsObserver: NSObjectProtocol?
+    @Published public internal(set) var budget = BudgetModel()
 
     private var cancellation: ScanCancellation?
     var duplicateCancellation: ScanCancellation?
@@ -147,6 +144,8 @@ public final class AppModel: ObservableObject {
     private var trashUndoStack: [TrashUndoEntry] = []
     var fileOperationInFlight = false
     private var cleanupCancellable: AnyCancellable?
+    private var diskCancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
     private var searchCancellable: AnyCancellable?
 
     public init() {
@@ -178,21 +177,18 @@ public final class AppModel: ObservableObject {
         cleanupCancellable = cleanup.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
-        folderBudgets = FolderBudgetStore.load()
-        budgetsObserver = NotificationCenter.default.addObserver(
-            forName: .folderBudgetsChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.folderBudgets = FolderBudgetStore.load()
+        disk.attach { [weak self] in self?.internalVolume }
+        diskCancellable = disk.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
         }
+        budget.attach(
+            treeProvider: { [weak self] in self?.tree },
+            historyProvider: { [weak self] in self?.scanHistory ?? [] }
+        )
+        budget.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
         media.attach(appModel: self)
-    }
-
-    deinit {
-        if let budgetsObserver {
-            NotificationCenter.default.removeObserver(budgetsObserver)
-        }
     }
 
     // MARK: - Derived state
@@ -859,9 +855,7 @@ public final class AppModel: ObservableObject {
 
     /// Fills disk overview state without scanning the real Trash; used by snapshots.
     public func previewDiskOverview(_ overview: DiskOverview) {
-        diskOverview = overview
-        diskOverviewLoading = false
-        diskOverviewError = nil
+        disk.preview(overview)
     }
 
     public func previewScanning(path: String, progress: ScanProgress) {

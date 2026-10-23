@@ -200,10 +200,10 @@ private struct InspectorDetails: View {
                     .textCase(.uppercase)
                     .tracking(0.4)
                 Spacer()
-                if model.folderBudget(forPath: tree?.path(of: index) ?? "") != nil {
+                if model.budget.budget(forPath: tree?.path(of: index) ?? "") != nil {
                     Button("Удалить") {
                         if let path = tree?.path(of: index) {
-                            model.removeFolderBudget(path: path)
+                            model.budget.remove(path: path)
                         }
                         budgetEditing = false
                     }
@@ -213,7 +213,7 @@ private struct InspectorDetails: View {
                 }
             }
 
-            if let status = model.folderBudgetStatus(forNode: index) {
+            if let status = model.budget.status(forNode: index) {
                 ProgressBar(
                     fraction: status.fraction,
                     tint: status.exceeded
@@ -238,7 +238,7 @@ private struct InspectorDetails: View {
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }
-                if let delta = model.folderBudgetDelta(forPath: status.budget.path), delta != 0 {
+                if let delta = model.budget.delta(forPath: status.budget.path), delta != 0 {
                     Text(
                         (delta > 0 ? "+" : "−") + ByteFormat.string(abs(delta))
                             + (L10n.isEnglish ? " since the previous scan" : " с прошлого скана")
@@ -272,7 +272,7 @@ private struct InspectorDetails: View {
                         guard let path = tree?.path(of: index),
                               let bytes = ByteSize.parse(budgetText),
                               bytes > 0 else { return }
-                        model.setFolderBudget(path: path, limitBytes: bytes)
+                        model.budget.set(path: path, limitBytes: bytes)
                         budgetEditing = false
                     }
                     .buttonStyle(.borderedProminent)

@@ -265,7 +265,7 @@ struct TreemapView: View {
 
     private func drawBudgetBadge(cell: TreemapCell, in context: inout GraphicsContext) {
         guard let node = cell.node,
-              let status = model.folderBudgetStatus(forNode: node) else { return }
+              let status = model.budget.status(forNode: node) else { return }
         let rect = cell.rect.insetBy(dx: 1, dy: 1)
         guard rect.width > 8, rect.height > 8 else { return }
         let color = status.exceeded ? Color.red : Color.orange
