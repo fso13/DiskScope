@@ -308,10 +308,10 @@ private struct TopItemRow: View {
             Button("Открыть") { model.openRow(row.id) }
             Button("Показать в Finder") { model.reveal(indices: [row.id]) }
             if !row.isContainer {
-                Button("Быстрый просмотр") { model.previewNode(row.id) }
+                Button("Быстрый просмотр") { model.inspector.previewNode(row.id) }
             }
-            Button("Копировать путь") { model.copyPaths([row.id]) }
-            Button("Открыть в терминале") { model.openInTerminal(row.id) }
+            Button("Копировать путь") { model.inspector.copyPaths([row.id]) }
+            Button("Открыть в терминале") { model.inspector.openInTerminal(row.id) }
             Divider()
             Button(model.isInCollection(row.id) ? "Убрать из коллекции" : "В коллекцию") {
                 model.toggleCollection([row.id])

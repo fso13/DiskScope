@@ -105,8 +105,8 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var history: HistoryModel
     @Published public internal(set) var duplicates = DuplicatesModel()
     @Published public internal(set) var similar = SimilarModel()
+    @Published public internal(set) var inspector = InspectorModel()
     @Published public var showInspector = false
-    @Published public var quickLookURL: URL?
 
     @Published public internal(set) var budget = BudgetModel()
 
@@ -160,6 +160,16 @@ public final class AppModel: ObservableObject {
         }.store(in: &cancellables)
         nav.attach { [weak self] in self?.tree }
         nav.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        inspector.attach(
+            treeProvider: { [weak self] in self?.tree },
+            currentIndexProvider: { [weak self] in self?.currentIndex ?? 0 },
+            selectionProvider: { [weak self] in self?.selection ?? [] },
+            toast: { [weak self] text, symbol in self?.showToast(text, symbol: symbol) },
+            error: { [weak self] message in self?.errorMessage = message }
+        )
+        inspector.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         trash.objectWillChange.sink { [weak self] _ in
@@ -244,6 +254,31 @@ public final class AppModel: ObservableObject {
     public var categoryFilter: FileCategory? {
         get { nav.categoryFilter }
         set { nav.categoryFilter = newValue }
+    }
+
+    // MARK: - Inspector compatibility
+
+    public var inspectorNode: Int32? { inspector.inspectorNode }
+    public var canQuickLook: Bool { inspector.canQuickLook }
+    public var quickLookURL: URL? {
+        get { inspector.quickLookURL }
+        set { inspector.quickLookURL = newValue }
+    }
+
+    public func previewSelection() {
+        inspector.previewSelection()
+    }
+
+    public func previewNode(_ index: Int32) {
+        inspector.previewNode(index)
+    }
+
+    public func copyPaths(_ indices: [Int32]) {
+        inspector.copyPaths(indices)
+    }
+
+    public func openInTerminal(_ index: Int32) {
+        inspector.openInTerminal(index)
     }
 
     // MARK: - Derived state
@@ -949,82 +984,6 @@ extension AppModel {
             if !hasSelectedAncestor { result.append(index) }
         }
         return result
-    }
-}
-
-extension AppModel {
-    // MARK: - Inspector and file actions
-
-    public var inspectorNode: Int32? {
-        if selection.count == 1 { return selection.first }
-        if selection.isEmpty { return currentIndex }
-        return nil
-    }
-
-    public var canQuickLook: Bool {
-        guard let tree else { return false }
-        return selection.contains { index in
-            index > 0 && Int(index) < tree.count
-                && !tree.isDeleted(index)
-                && tree.node(index).nodeKind == .file
-        }
-    }
-
-    public func previewSelection() {
-        guard let tree else { return }
-        let index = selection.sorted().first { candidate in
-            candidate > 0 && Int(candidate) < tree.count
-                && !tree.isDeleted(candidate)
-                && tree.node(candidate).nodeKind == .file
-        }
-        guard let index else {
-            quickLookURL = nil
-            return
-        }
-        previewNode(index)
-    }
-
-    public func previewNode(_ index: Int32) {
-        guard let tree, index > 0, Int(index) < tree.count,
-              !tree.isDeleted(index),
-              tree.node(index).nodeKind == .file else { return }
-        quickLookURL = tree.url(of: index)
-    }
-
-    public func copyPaths(_ indices: [Int32]) {
-        guard let tree else { return }
-        let paths = indices.compactMap { index -> String? in
-            guard index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return nil }
-            return tree.path(of: index)
-        }
-        guard !paths.isEmpty else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(paths.joined(separator: "\n"), forType: .string)
-        showToast(
-            paths.count == 1 ? "Путь скопирован" : "Скопировано путей: \(paths.count)",
-            symbol: "doc.on.doc"
-        )
-    }
-
-    public func openInTerminal(_ index: Int32) {
-        guard let tree, index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return }
-        let url = tree.url(of: index)
-        let folder = tree.isDirectory(index) ? url : url.deletingLastPathComponent()
-        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-        guard FileManager.default.fileExists(atPath: terminal.path) else {
-            errorMessage = "Не удалось найти Terminal.app"
-            return
-        }
-        NSWorkspace.shared.open(
-            [folder],
-            withApplicationAt: terminal,
-            configuration: NSWorkspace.OpenConfiguration()
-        ) { [weak self] _, error in
-            guard let error else { return }
-            DispatchQueue.main.async {
-                self?.errorMessage = "Не удалось открыть терминал: \(error.localizedDescription)"
-            }
-        }
     }
 }
 

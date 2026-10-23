@@ -83,9 +83,9 @@ struct DiskScopeApp: App {
                 Button("Инспектор") { model.showInspector.toggle() }
                     .keyboardShortcut("i", modifiers: [.command, .option])
                     .disabled(model.tree == nil)
-                Button("Быстрый просмотр") { model.previewSelection() }
+                Button("Быстрый просмотр") { model.inspector.previewSelection() }
                     .keyboardShortcut("y", modifiers: .command)
-                    .disabled(!model.canQuickLook)
+                    .disabled(!model.inspector.canQuickLook)
                 Divider()
                 Button("Карта папки") { model.tab = .map }
                     .keyboardShortcut("1", modifiers: .command)

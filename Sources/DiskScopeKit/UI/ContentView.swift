@@ -60,7 +60,7 @@ public struct ContentView: View {
                 .environmentObject(model)
         }
         .onAppear { model.refreshVolumes() }
-        .quickLookPreview($model.quickLookURL)
+        .quickLookPreview($model.inspector.quickLookURL)
         .preferredColorScheme(AppAppearance(rawValue: appearance)?.colorScheme)
         .environment(\.locale, AppLanguage(rawValue: language)?.locale ?? Locale.current)
     }
