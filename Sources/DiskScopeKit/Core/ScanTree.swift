@@ -17,7 +17,7 @@ public enum NodeKind: UInt8, Sendable {
 /// Compact in-memory representation of a file or folder.
 /// Names live in a shared byte blob, nodes reference it by offset, which keeps
 /// the footprint of a multi-million item scan low.
-public struct ScanNode: Sendable {
+public struct ScanNode: Sendable, Codable {
     public var nameOffset: Int32 = 0
     public var nameLength: Int32 = 0
     public var parent: Int32 = -1
@@ -92,7 +92,7 @@ public struct ScanNode: Sendable {
 }
 
 /// Summary produced by a scan.
-public struct ScanReport: Sendable {
+public struct ScanReport: Sendable, Codable {
     public var duration: TimeInterval = 0
     public var entriesRead: Int = 0
     public var bytesFound: Int64 = 0
@@ -185,6 +185,25 @@ public final class ScanTree {
     public func node(_ index: Int32) -> ScanNode { nodes[Int(index)] }
 
     public func isDeleted(_ index: Int32) -> Bool { deleted[Int(index)] }
+
+    /// Finds a node by absolute path, following the scan root.
+    public func index(ofPath path: String) -> Int32? {
+        let root = URL(fileURLWithPath: rootPath).resolvingSymlinksInPath().path
+        let target = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        guard target == root || target.hasPrefix(root == "/" ? "/" : root + "/") else {
+            return nil
+        }
+        if target == root { return 0 }
+        let relative = String(target.dropFirst(root == "/" ? 1 : root.count + 1))
+        var index: Int32 = 0
+        for component in relative.split(separator: "/") {
+            guard let child = children(of: index).first(where: { name(of: $0) == component }) else {
+                return nil
+            }
+            index = child
+        }
+        return index
+    }
 
     public func name(of index: Int32) -> String {
         guard index >= 0, Int(index) < nodes.count else { return "" }
