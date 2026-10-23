@@ -112,7 +112,7 @@ public final class AppModel: ObservableObject {
     @Published public var cleanupSelection: Set<String> = []
     @Published public internal(set) var cleanupLoading = false
     @Published public var showCleanupConfirmation = false
-    @Published public private(set) var collection: Set<Int32> = []
+    @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
     @Published public var showCollectionTrashConfirmation = false
     @Published public var showGlobalSearch = false {
@@ -141,10 +141,10 @@ public final class AppModel: ObservableObject {
     @Published public var searchSort: SearchSort = .size {
         didSet { scheduleSearch() }
     }
-    @Published public private(set) var searchHits: [SearchHit] = []
-    @Published public private(set) var searchTotal = 0
-    @Published public private(set) var searchIndexing = false
-    @Published public private(set) var searchReady = false
+    @Published public internal(set) var searchHits: [SearchHit] = []
+    @Published public internal(set) var searchTotal = 0
+    @Published public internal(set) var searchIndexing = false
+    @Published public internal(set) var searchReady = false
     @Published public internal(set) var diskOverview: DiskOverview?
     @Published public internal(set) var diskOverviewLoading = false
     @Published public internal(set) var diskOverviewError: String?
@@ -178,13 +178,13 @@ public final class AppModel: ObservableObject {
     private var derivedGeneration = 0
     private let rowLimit = 2500
     private var trashUndoStack: [TrashUndoEntry] = []
-    private var fileOperationInFlight = false
+    var fileOperationInFlight = false
     var cleanupGeneration = 0
     var cleanupTreeID: ObjectIdentifier?
-    private var searchIndex: ScanSearchIndex?
-    private var searchIndexGeneration = 0
-    private var searchQueryGeneration = 0
-    private var searchWorkItem: DispatchWorkItem?
+    var searchIndex: ScanSearchIndex?
+    var searchIndexGeneration = 0
+    var searchQueryGeneration = 0
+    var searchWorkItem: DispatchWorkItem?
 
     public init() {
         UserDefaults.standard.register(defaults: [
@@ -363,7 +363,7 @@ public final class AppModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let items = tree.largestItems(limit: 4000)
             let rows = items.map { index in
-                Self.makeRow(tree: tree, index: index, parentSize: max(tree.totalSize, 1), includePaths: true)
+                ItemRowFactory.make(tree: tree, index: index, parentSize: max(tree.totalSize, 1), includePaths: true)
             }
             let stats = tree.categoryStats()
             DispatchQueue.main.async {
@@ -777,43 +777,13 @@ public final class AppModel: ObservableObject {
         for index in indices {
             // Paths are only needed by the "largest" list; skip them here to keep
             // huge folders (node_modules and friends) responsive.
-            rows.append(Self.makeRow(tree: tree, index: index, parentSize: parentSize, includePaths: false))
+            rows.append(ItemRowFactory.make(tree: tree, index: index, parentSize: parentSize, includePaths: false))
         }
         rows.sort(using: sortOrder)
         currentRowsTotal = rows.count
         currentRowsTruncated = rows.count > rowLimit
         if rows.count > rowLimit { rows = Array(rows.prefix(rowLimit)) }
         currentRows = rows
-    }
-
-    private static func makeRow(
-        tree: ScanTree,
-        index: Int32,
-        parentSize: Int64,
-        includePaths: Bool
-    ) -> ItemRow {
-        let node = tree.node(index)
-        let isAggregate = node.nodeKind == .aggregate
-        let name: String
-        if isAggregate {
-            name = "Мелкие файлы"
-        } else {
-            name = TreeNaming.name(tree: tree, index: index)
-        }
-        return ItemRow(
-            id: index,
-            name: name,
-            path: includePaths ? tree.path(of: index) : "",
-            relativePath: includePaths ? tree.relativePath(of: index) : "",
-            size: node.size,
-            category: tree.category(of: index),
-            isContainer: node.nodeKind.isContainer,
-            isAggregate: isAggregate,
-            isHardLink: node.isHardLink,
-            itemCount: Int(node.itemCount),
-            fraction: parentSize > 0 ? Double(node.size) / Double(parentSize) : 0,
-            depth: 0
-        )
     }
 
     // MARK: - Type filter
@@ -883,7 +853,7 @@ public final class AppModel: ObservableObject {
         volumes = VolumeInfo.loadAll()
         rebuildCurrentRows()
         largestItems = tree.largestItems(limit: 4000).map {
-            Self.makeRow(tree: tree, index: $0, parentSize: max(tree.totalSize, 1), includePaths: true)
+            ItemRowFactory.make(tree: tree, index: $0, parentSize: max(tree.totalSize, 1), includePaths: true)
         }
         categoryStats = tree.categoryStats()
     }
@@ -1116,229 +1086,6 @@ extension AppModel {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if safe.isEmpty { safe = "DiskScope" }
         return "DiskScope-\(safe).\(format.fileExtension)"
-    }
-}
-
-extension AppModel {
-    // MARK: - Collection
-
-    public var collectionCount: Int { collection.count }
-
-    public var collectionSize: Int64 {
-        guard let tree else { return 0 }
-        return collection.reduce(Int64(0)) { total, index in
-            Int(index) < tree.count ? total + tree.node(index).size : total
-        }
-    }
-
-    public var collectionSummary: String {
-        "\(Plural.items(collectionCount)) · \(ByteFormat.string(collectionSize))"
-    }
-
-    public var collectionTrashMessage: String {
-        "\(collectionSummary). Файлы можно вернуть из Корзины через ⌘Z."
-    }
-
-    public var collectionRows: [ItemRow] {
-        guard let tree else { return [] }
-        return collection.compactMap { index -> ItemRow? in
-            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { return nil }
-            return Self.makeRow(
-                tree: tree,
-                index: index,
-                parentSize: max(tree.totalSize, 1),
-                includePaths: true
-            )
-        }
-        .sorted { $0.size > $1.size }
-    }
-
-    public var canTrashCollection: Bool {
-        !collection.isEmpty && !fileOperationInFlight
-    }
-
-    public func isInCollection(_ index: Int32) -> Bool {
-        collection.contains(index)
-    }
-
-    public func addToCollection(_ indices: [Int32]) {
-        guard let tree else { return }
-        var updated = collection
-        for index in indices {
-            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
-            guard tree.node(index).nodeKind != .aggregate else { continue }
-            if updated.contains(where: { isAncestor($0, of: index, in: tree) }) { continue }
-            updated = updated.filter { !isAncestor(index, of: $0, in: tree) }
-            updated.insert(index)
-        }
-        collection = updated
-    }
-
-    public func removeFromCollection(_ indices: [Int32]) {
-        collection.subtract(indices)
-    }
-
-    public func toggleCollection(_ indices: [Int32]) {
-        guard !indices.isEmpty else { return }
-        if indices.allSatisfy({ collection.contains($0) }) {
-            removeFromCollection(indices)
-        } else {
-            addToCollection(indices)
-        }
-    }
-
-    public func clearCollection() {
-        collection = []
-    }
-
-    public func requestTrashCollection() {
-        guard canTrashCollection else { return }
-        if UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
-            showCollectionTrashConfirmation = true
-        } else {
-            confirmCollectionTrash()
-        }
-    }
-
-    private func isAncestor(_ ancestor: Int32, of node: Int32, in tree: ScanTree) -> Bool {
-        var cursor = tree.node(node).parent
-        while cursor >= 0 {
-            if cursor == ancestor { return true }
-            cursor = tree.node(cursor).parent
-        }
-        return false
-    }
-
-    func resetCollection() {
-        collection = []
-        showCollection = false
-        showCollectionTrashConfirmation = false
-    }
-}
-
-extension AppModel {
-    // MARK: - Global search
-
-    /// Builds the name index on demand. Results are applied only for the current tree.
-    public func ensureSearchIndex() {
-        guard let tree else {
-            resetSearch()
-            return
-        }
-        if let index = searchIndex, index.treeIdentifier == ObjectIdentifier(tree) {
-            searchReady = true
-            return
-        }
-        guard !searchIndexing else { return }
-
-        searchIndexGeneration += 1
-        let generation = searchIndexGeneration
-        searchIndexing = true
-        searchReady = false
-        let treeToIndex = tree
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let index = ScanSearchIndex(tree: treeToIndex)
-            DispatchQueue.main.async {
-                guard let self,
-                      self.searchIndexGeneration == generation,
-                      self.tree === treeToIndex else { return }
-                self.searchIndex = index
-                self.searchIndexing = false
-                self.searchReady = true
-                self.runSearch()
-            }
-        }
-    }
-
-    func scheduleSearch() {
-        searchWorkItem?.cancel()
-        guard showGlobalSearch else { return }
-        let item = DispatchWorkItem { [weak self] in
-            self?.runSearch()
-        }
-        searchWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: item)
-    }
-
-    func runSearch() {
-        guard showGlobalSearch, let tree else { return }
-        guard let index = searchIndex, index.treeIdentifier == ObjectIdentifier(tree) else {
-            ensureSearchIndex()
-            return
-        }
-
-        let query = SearchQuery(
-            text: globalSearchText,
-            minimumSize: searchMinimumSize,
-            category: searchCategory,
-            kind: searchKind,
-            dateRange: searchDateRange,
-            sort: searchSort,
-            limit: 500
-        )
-        searchQueryGeneration += 1
-        let generation = searchQueryGeneration
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let results = index.search(query)
-            DispatchQueue.main.async {
-                guard let self,
-                      self.searchQueryGeneration == generation,
-                      self.showGlobalSearch else { return }
-                self.searchHits = results.hits
-                self.searchTotal = results.total
-            }
-        }
-    }
-
-    func resetSearch() {
-        searchIndexGeneration += 1
-        searchQueryGeneration += 1
-        searchWorkItem?.cancel()
-        searchIndex = nil
-        searchHits = []
-        searchTotal = 0
-        searchIndexing = false
-        searchReady = false
-        showGlobalSearch = false
-        globalSearchText = ""
-    }
-
-    public func revealSearchHit(_ hit: SearchHit) {
-        showGlobalSearch = false
-        reveal(indices: [hit.index])
-    }
-
-    public func navigateToSearchHit(_ hit: SearchHit) {
-        guard let tree, hit.index > 0, Int(hit.index) < tree.count else { return }
-        showGlobalSearch = false
-        let node = tree.node(hit.index)
-        if node.nodeKind.isContainer {
-            navigate(to: hit.index)
-        } else {
-            if node.parent >= 0 {
-                navigate(to: node.parent)
-            }
-            reveal(indices: [hit.index])
-        }
-    }
-
-    public func addSearchHitToCollection(_ hit: SearchHit) {
-        addToCollection([hit.index])
-        showToast("В коллекции: \(collectionSummary)", symbol: "tray.full")
-    }
-
-    public func requestTrashSearchHit(_ hit: SearchHit) {
-        guard let tree, hit.index > 0, Int(hit.index) < tree.count, !tree.isDeleted(hit.index) else {
-            return
-        }
-        showGlobalSearch = false
-        selection = [hit.index]
-        // Let the search sheet finish dismissing before showing the confirmation.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            self?.requestTrashSelection()
-        }
     }
 }
 

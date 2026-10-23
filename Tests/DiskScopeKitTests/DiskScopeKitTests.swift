@@ -470,6 +470,16 @@ final class TreemapTests: XCTestCase {
 }
 
 final class ModelHelperTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.set("ru", forKey: "app.settings.language")
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "app.settings.language")
+        super.tearDown()
+    }
+
     func testByteFormatting() {
         XCTAssertEqual(ByteFormat.string(0), "0 Б")
         XCTAssertTrue(ByteFormat.string(1_500).contains("КБ"))
