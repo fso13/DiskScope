@@ -12,7 +12,7 @@ extension AppModel {
     public func trashDuplicateFiles(_ indices: Set<Int32>) {
         guard !indices.isEmpty else { return }
         selection = indices
-        requestTrashSelection()
+        trashOperations.requestSelection()
     }
 
     public func collectDuplicateFiles(_ indices: Set<Int32>) {

@@ -91,7 +91,7 @@ struct InspectorView: View {
                 }
 
                 AccentButton(title: "В Корзину…", symbol: "trash") {
-                    model.requestTrashSelection()
+                    model.trashOperations.requestSelection()
                 }
             }
             .padding(12)
@@ -331,7 +331,7 @@ private struct InspectorDetails: View {
             }
             AccentButton(title: "В Корзину…", symbol: "trash") {
                 model.selection = [index]
-                model.requestTrashSelection()
+                model.trashOperations.requestSelection()
             }
             .opacity(node?.nodeKind == .aggregate ? 0.4 : 1)
             .disabled(node?.nodeKind == .aggregate)

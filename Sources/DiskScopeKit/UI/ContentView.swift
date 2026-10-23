@@ -27,9 +27,9 @@ public struct ContentView: View {
         .frame(minWidth: 1180, minHeight: 760)
         .folderDropTarget()
         .overlay(alignment: .bottom) { toastLayer }
-        .alert("Переместить в Корзину?", isPresented: $model.showTrashConfirmation) {
+        .alert("Переместить в Корзину?", isPresented: $model.trash.showSelectionConfirmation) {
             Button("Отмена", role: .cancel) {}
-            Button("В Корзину", role: .destructive) { model.confirmTrash() }
+            Button("В Корзину", role: .destructive) { model.trashOperations.confirmSelection() }
         } message: {
             Text(trashMessage)
         }

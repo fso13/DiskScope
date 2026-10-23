@@ -155,7 +155,7 @@ struct TreemapView: View {
                 Divider()
                 Button("В Корзину…", role: .destructive) {
                     model.selection = [node]
-                    model.requestTrashSelection()
+                    model.trashOperations.requestSelection()
                 }
             } else {
                 Button("Показать в Finder") { model.reveal(indices: [root]) }
@@ -465,7 +465,7 @@ struct TreemapView: View {
             }
             GhostButton(title: "В Корзину", symbol: "trash", tint: Theme.danger) {
                 model.selection = [node]
-                model.requestTrashSelection()
+                model.trashOperations.requestSelection()
             }
             Button {
                 previewNode = nil

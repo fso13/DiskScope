@@ -94,6 +94,7 @@ public final class AppModel: ObservableObject {
     @Published public var showCommandPalette = false
     @Published public var showPermissionSheet = false
     @Published public internal(set) var trash = TrashModel()
+    @Published public internal(set) var trashOperations = TrashOperationsModel()
     @Published public internal(set) var cleanup = CleanupModel()
     @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
@@ -187,6 +188,10 @@ public final class AppModel: ObservableObject {
         trash.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
+        trashOperations.attach(appModel: self)
+        trashOperations.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
         disk.attach { [weak self] in self?.internalVolume }
         diskCancellable = disk.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
@@ -239,16 +244,6 @@ public final class AppModel: ObservableObject {
     var fileOperationInFlight: Bool {
         get { trash.busy }
         set { trash.busy = newValue }
-    }
-
-    public var canUndoTrash: Bool { trash.canUndo }
-    public var showTrashConfirmation: Bool {
-        get { trash.showSelectionConfirmation }
-        set { trash.showSelectionConfirmation = newValue }
-    }
-    public var showCollectionTrashConfirmation: Bool {
-        get { trash.showCollectionConfirmation }
-        set { trash.showCollectionConfirmation = newValue }
     }
 
     public var currentIndex: Int32 {
@@ -460,190 +455,10 @@ public final class AppModel: ObservableObject {
 
     // MARK: - Trash
 
-    public func requestTrashSelection() {
-        guard canTrashSelection else { return }
-        if UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
-            showTrashConfirmation = true
-        } else {
-            confirmTrash()
-        }
-    }
-
-    public func confirmTrash() {
-        showTrashConfirmation = false
-        guard let tree, canTrashSelection else { return }
-        performTrash(indices: topLevelSelection(), tree: tree)
-    }
-
-    public func confirmCollectionTrash() {
-        showCollectionTrashConfirmation = false
-        showCollection = false
-        guard let tree, canTrashCollection else { return }
-        performTrash(indices: collection.sorted(), tree: tree)
-    }
-
-    private func performTrash(indices: [Int32], tree: ScanTree) {
-        guard !fileOperationInFlight, !indices.isEmpty else { return }
-        let urls = indices.map { tree.url(of: $0) }
-        selection = []
-        fileOperationInFlight = true
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var trashed: [(index: Int32, original: URL, trashed: URL)] = []
-            var failures: [(url: URL, message: String)] = []
-            for (offset, url) in urls.enumerated() {
-                do {
-                    var resultingURL: NSURL?
-                    try FileManager.default.trashItem(at: url, resultingItemURL: &resultingURL)
-                    let trashedURL = (resultingURL as URL?) ?? url
-                    trashed.append((indices[offset], url, trashedURL))
-                } catch {
-                    failures.append((url, error.localizedDescription))
-                }
-            }
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.applyTrash(tree: tree, trashed: trashed, failures: failures)
-            }
-        }
-    }
-
-    private func applyTrash(
-        tree scanTree: ScanTree,
-        trashed: [(index: Int32, original: URL, trashed: URL)],
-        failures: [(url: URL, message: String)]
-    ) {
-        fileOperationInFlight = false
-        guard !trashed.isEmpty else {
-            if let failure = failures.first {
-                errorMessage = "Не удалось переместить «\(failure.url.lastPathComponent)» в Корзину: \(failure.message)"
-            }
-            return
-        }
-        let removed = scanTree.removingSubtrees(at: trashed.map(\.index))
-        recordUndo(removal: removed, trashed: trashed)
-        collection = collection.filter { !removed.tree.isDeleted($0) }
-        resetDuplicates()
-        resetSimilar()
-        fileCount = removed.tree.totalFiles
-        folderCount = removed.tree.directoryCount()
-        tree = removed.tree
-        selection = []
-        // A package containing the current folder could be removed from the
-        // "largest" list; fall back to the nearest surviving ancestor.
-        if removed.tree.isDeleted(currentIndex) {
-            var cursor = currentIndex
-            while cursor > 0, removed.tree.isDeleted(cursor) {
-                cursor = removed.tree.node(cursor).parent
-            }
-            currentIndex = max(cursor, 0)
-        }
-        rebuildCurrentRows()
-        refreshVolumes()
-        stats.refresh()
-        invalidateCleanup()
-        showToast(
-            "В Корзину: \(Plural.items(trashed.count)) · \(ByteFormat.string(removed.bytes)) · ⌘Z — отменить",
-            symbol: "trash.fill"
-        )
-        if let failure = failures.first {
-            errorMessage = "Часть объектов не удалось удалить. «\(failure.url.lastPathComponent)»: \(failure.message)"
-        }
-    }
-
-    /// Moves the files of the last deletion back and restores their subtrees.
-    public func undoLastTrash() {
-        guard !fileOperationInFlight, let entry = trash.popUndo() else { return }
-        fileOperationInFlight = true
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var restoredGroups: [ScanTreeRemoval.Group] = []
-            var failures: [(url: URL, message: String)] = []
-            var restoredCount = 0
-            for file in entry.files {
-                let manager = FileManager.default
-                guard manager.fileExists(atPath: file.trashedURL.path) else {
-                    failures.append((file.originalURL, "файл не найден в Корзине"))
-                    continue
-                }
-                guard !manager.fileExists(atPath: file.originalURL.path) else {
-                    failures.append((file.originalURL, "путь уже занят другим файлом"))
-                    continue
-                }
-                do {
-                    try manager.moveItem(at: file.trashedURL, to: file.originalURL)
-                    restoredGroups.append(file.group)
-                    restoredCount += 1
-                } catch {
-                    failures.append((file.originalURL, error.localizedDescription))
-                }
-            }
-            DispatchQueue.main.async {
-                guard let self else { return }
-                let restoredRoots = Set(restoredGroups.map(\.root))
-                self.applyUndo(
-                    groups: restoredGroups,
-                    collectionRoots: entry.collectionRoots.filter { restoredRoots.contains($0) },
-                    restoredCount: restoredCount,
-                    failures: failures
-                )
-            }
-        }
-    }
-
-    private func applyUndo(
-        groups: [ScanTreeRemoval.Group],
-        collectionRoots: [Int32],
-        restoredCount: Int,
-        failures: [(url: URL, message: String)]
-    ) {
-        fileOperationInFlight = false
-        if !groups.isEmpty, let tree {
-            let restored = tree.restoringSubtrees(groups: groups)
-            self.tree = restored
-            resetDuplicates()
-            resetSimilar()
-            addToCollection(collectionRoots)
-            selection = []
-            fileCount = restored.totalFiles
-            folderCount = restored.directoryCount()
-            if restored.isDeleted(currentIndex) {
-                var cursor = currentIndex
-                while cursor > 0, restored.isDeleted(cursor) {
-                    cursor = restored.node(cursor).parent
-                }
-                currentIndex = max(cursor, 0)
-            }
-            rebuildCurrentRows()
-            refreshVolumes()
-            stats.refresh()
-            invalidateCleanup()
-            let bytes = groups.reduce(Int64(0)) { $0 + $1.bytes }
-            showToast(
-                "Возвращено: \(Plural.items(restoredCount)) · \(ByteFormat.string(bytes))",
-                symbol: "arrow.uturn.backward"
-            )
-        }
-        if let failure = failures.first {
-            errorMessage = "Не удалось вернуть «\(failure.url.lastPathComponent)»: \(failure.message)"
-        }
-    }
-
-    private func recordUndo(
-        removal: ScanTreeRemoval,
-        trashed: [(index: Int32, original: URL, trashed: URL)]
-    ) {
-        let roots = Array(Set(trashed.map(\.index)))
-        trash.record(
-            removal: removal,
-            trashed: trashed,
-            collectionRoots: roots.filter { collection.contains($0) }
-        )
-    }
-
     func resetTrashUndo() {
         trash.reset()
     }
+
     // MARK: - Cleanup
 
     public func requestCleanup() {
@@ -714,7 +529,12 @@ public final class AppModel: ObservableObject {
         }
 
         let removed = scanTree.removingSubtrees(at: indices)
-        recordUndo(removal: removed, trashed: trashed)
+        let roots = Array(Set(trashed.map(\.index)))
+        trash.record(
+            removal: removed,
+            trashed: trashed,
+            collectionRoots: roots.filter { collection.contains($0) }
+        )
         collection = collection.filter { !removed.tree.isDeleted($0) }
         resetDuplicates()
         resetSimilar()
@@ -748,7 +568,7 @@ public final class AppModel: ObservableObject {
         cleanup.reset()
     }
 
-    private func invalidateCleanup() {
+    func invalidateCleanup() {
         resetCleanup()
         if tab == .cleanup {
             loadCleanupSuggestionsIfNeeded()
@@ -825,25 +645,6 @@ extension AppModel {
     func runningBundleIdentifiers() -> Set<String> {
         Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
     }
-
-    private func topLevelSelection() -> [Int32] {
-        guard let tree else { return [] }
-        var result: [Int32] = []
-        for index in selection.sorted() {
-            guard index > 0, Int(index) < tree.count, !tree.isDeleted(index) else { continue }
-            var ancestor = tree.node(index).parent
-            var hasSelectedAncestor = false
-            while ancestor >= 0 {
-                if selection.contains(ancestor) {
-                    hasSelectedAncestor = true
-                    break
-                }
-                ancestor = tree.node(ancestor).parent
-            }
-            if !hasSelectedAncestor { result.append(index) }
-        }
-        return result
-    }
 }
 
 extension AppModel {
@@ -906,13 +707,6 @@ extension AppModel {
     }
 
     public var selectedCount: Int { selection.count }
-
-    public var canTrashSelection: Bool {
-        guard let tree, !selection.isEmpty else { return false }
-        return selection.allSatisfy { index in
-            index > 0 && !tree.isDeleted(index) && tree.node(index).nodeKind != .aggregate
-        }
-    }
 
     public var canRevealSelection: Bool {
         guard let tree, !selection.isEmpty else { return false }

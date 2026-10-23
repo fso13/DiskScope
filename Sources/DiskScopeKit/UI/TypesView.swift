@@ -319,7 +319,7 @@ private struct TopItemRow: View {
             Divider()
             Button("В Корзину…", role: .destructive) {
                 model.selection = [row.id]
-                model.requestTrashSelection()
+                model.trashOperations.requestSelection()
             }
         }
     }

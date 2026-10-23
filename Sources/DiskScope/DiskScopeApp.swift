@@ -21,9 +21,9 @@ struct DiskScopeApp: App {
             CommandGroup(replacing: .newItem) {}
 
             CommandGroup(replacing: .undoRedo) {
-                Button("Отменить удаление") { model.undoLastTrash() }
+                Button("Отменить удаление") { model.trashOperations.undoLast() }
                     .keyboardShortcut("z", modifiers: .command)
-                    .disabled(!model.canUndoTrash)
+                    .disabled(!model.trash.canUndo)
             }
 
             CommandGroup(after: .appInfo) {
@@ -126,9 +126,9 @@ struct DiskScopeApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(model.tree == nil)
-                Button("Переместить в Корзину…") { model.requestTrashSelection() }
+                Button("Переместить в Корзину…") { model.trashOperations.requestSelection() }
                     .keyboardShortcut(.delete, modifiers: .command)
-                    .disabled(!model.canTrashSelection)
+                    .disabled(!model.trashOperations.canTrashSelection)
             }
         }
 

@@ -275,9 +275,9 @@ struct HeaderView: View {
                 symbol: "trash",
                 help: "Переместить в Корзину (⌘⌫)",
                 tint: Theme.danger,
-                disabled: !model.canTrashSelection
+                disabled: !model.trashOperations.canTrashSelection
             ) {
-                model.requestTrashSelection()
+                model.trashOperations.requestSelection()
             }
         }
     }

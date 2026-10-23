@@ -559,7 +559,7 @@ struct CommandPaletteView: View {
             )
         }
 
-        if model.canTrashSelection {
+        if model.trashOperations.canTrashSelection {
             items.append(
                 PaletteCommand(
                     id: "trash",
@@ -568,12 +568,12 @@ struct CommandPaletteView: View {
                     symbol: "trash",
                     shortcut: "⌘⌫"
                 ) {
-                    model.requestTrashSelection()
+                    model.trashOperations.requestSelection()
                 }
             )
         }
 
-        if model.canUndoTrash {
+        if model.trash.canUndo {
             items.append(
                 PaletteCommand(
                     id: "undo-trash",
@@ -582,7 +582,7 @@ struct CommandPaletteView: View {
                     symbol: "arrow.uturn.backward",
                     shortcut: "⌘Z"
                 ) {
-                    model.undoLastTrash()
+                    model.trashOperations.undoLast()
                 }
             )
         }
