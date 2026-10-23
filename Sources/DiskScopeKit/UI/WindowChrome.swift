@@ -447,7 +447,7 @@ struct CommandPaletteView: View {
                     symbol: "clock.arrow.circlepath",
                     shortcut: "⌘8"
                 ) {
-                    model.showHistory = true
+                    model.history.show = true
                 }
             )
             items.append(
