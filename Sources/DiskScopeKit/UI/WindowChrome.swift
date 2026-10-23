@@ -528,7 +528,7 @@ struct CommandPaletteView: View {
                     symbol: "square.and.arrow.up",
                     shortcut: "⇧⌘E"
                 ) {
-                    model.exportReport(format: .csv, scope: .currentFolder)
+                    model.report.exportReport(format: .csv, scope: .currentFolder)
                 }
             )
             items.append(
@@ -539,7 +539,7 @@ struct CommandPaletteView: View {
                     symbol: "square.and.arrow.up",
                     shortcut: nil
                 ) {
-                    model.exportReport(format: .html, scope: .currentFolder)
+                    model.report.exportReport(format: .html, scope: .currentFolder)
                 }
             )
             items.append(
