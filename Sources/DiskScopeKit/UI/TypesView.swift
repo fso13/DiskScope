@@ -3,7 +3,7 @@ import SwiftUI
 struct TypesView: View {
     @EnvironmentObject private var model: AppModel
 
-    private var stats: [CategoryStat] { model.categoryStats }
+    private var stats: [CategoryStat] { model.stats.categoryStats }
     private var total: Int64 { max(model.tree?.totalSize ?? 0, 1) }
     private var largest: Int64 { max(stats.map(\.size).max() ?? 0, 1) }
 
@@ -12,7 +12,7 @@ struct TypesView: View {
             VStack(spacing: 12) {
                 distributionCard
                 breakdownCard
-                if !model.largestItems.isEmpty {
+                if !model.stats.largestItems.isEmpty {
                     largestCard
                 }
                 note
@@ -124,7 +124,7 @@ struct TypesView: View {
 
             Rectangle().fill(Theme.border).frame(height: 1)
 
-            ForEach(model.largestItems.prefix(5)) { row in
+            ForEach(model.stats.largestItems.prefix(5)) { row in
                 TopItemRow(row: row, rootName: model.rootDisplayName) {
                     model.reveal(indices: [row.id])
                 }
