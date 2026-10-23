@@ -35,7 +35,7 @@ public struct ContentView: View {
         }
         .alert("Очистить выбранное?", isPresented: $model.cleanup.showConfirmation) {
             Button("Отмена", role: .cancel) {}
-            Button("Очистить", role: .destructive) { model.confirmCleanup() }
+            Button("Очистить", role: .destructive) { model.cleanupOperations.confirm() }
         } message: {
             Text(model.cleanup.confirmationMessage)
         }
