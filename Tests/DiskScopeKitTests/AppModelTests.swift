@@ -131,16 +131,16 @@ final class AppModelTests: XCTestCase {
 
         let aggregate = try XCTUnwrap(model.currentRows.first { $0.isAggregate })
         model.selection = [aggregate.id]
-        XCTAssertFalse(model.canTrashSelection)
-        model.requestTrashSelection()
-        XCTAssertFalse(model.showTrashConfirmation)
+        XCTAssertFalse(model.trashOperations.canTrashSelection)
+        model.trashOperations.requestSelection()
+        XCTAssertFalse(model.trash.showSelectionConfirmation)
 
         let file = try XCTUnwrap(model.currentRows.first { !$0.isContainer && !$0.isAggregate })
         model.selection = [file.id]
-        XCTAssertTrue(model.canTrashSelection)
-        model.requestTrashSelection()
-        XCTAssertTrue(model.showTrashConfirmation)
-        model.showTrashConfirmation = false
+        XCTAssertTrue(model.trashOperations.canTrashSelection)
+        model.trashOperations.requestSelection()
+        XCTAssertTrue(model.trash.showSelectionConfirmation)
+        model.trash.showSelectionConfirmation = false
     }
 
     func testUndoIsUnavailableWithoutDeletion() throws {
@@ -148,9 +148,9 @@ final class AppModelTests: XCTestCase {
         let model = AppModel()
         model.preview.load(tree: tree)
 
-        XCTAssertFalse(model.canUndoTrash)
-        model.undoLastTrash()
-        XCTAssertFalse(model.canUndoTrash)
+        XCTAssertFalse(model.trash.canUndo)
+        model.trashOperations.undoLast()
+        XCTAssertFalse(model.trash.canUndo)
     }
 
     func testCleanupPreviewSelectionAndTotals() throws {
@@ -191,7 +191,7 @@ final class AppModelTests: XCTestCase {
         model.addToCollection([sub.id])
         let subSize = model.collectionSize
         XCTAssertEqual(model.collectionCount, 1)
-        XCTAssertTrue(model.canTrashCollection)
+        XCTAssertTrue(model.trashOperations.canTrashCollection)
         XCTAssertTrue(model.collectionTrashMessage.contains("⌘Z"))
 
         model.navigate(to: sub.id)
@@ -212,7 +212,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.collectionCount, 1)
 
         model.clearCollection()
-        XCTAssertFalse(model.canTrashCollection)
+        XCTAssertFalse(model.trashOperations.canTrashCollection)
 
         model.addToCollection([video.id])
         model.preview.load(tree: tree)

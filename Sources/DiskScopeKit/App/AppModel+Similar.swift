@@ -12,7 +12,7 @@ extension AppModel {
     public func trashSimilarImages(_ indices: Set<Int32>) {
         guard !indices.isEmpty else { return }
         selection = indices
-        requestTrashSelection()
+        trashOperations.requestSelection()
     }
 
     public func collectSimilarImages(_ indices: Set<Int32>) {

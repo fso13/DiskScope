@@ -33,7 +33,7 @@ extension AppModel {
         search.show = false
         selection = [hit.index]
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            self?.requestTrashSelection()
+            self?.trashOperations.requestSelection()
         }
     }
 }

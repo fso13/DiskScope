@@ -35,10 +35,6 @@ extension AppModel {
         .sorted { $0.size > $1.size }
     }
 
-    public var canTrashCollection: Bool {
-        !collection.isEmpty && !fileOperationInFlight
-    }
-
     public func isInCollection(_ index: Int32) -> Bool {
         collection.contains(index)
     }
@@ -73,15 +69,6 @@ extension AppModel {
         collection = []
     }
 
-    public func requestTrashCollection() {
-        guard canTrashCollection else { return }
-        if UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
-            showCollectionTrashConfirmation = true
-        } else {
-            confirmCollectionTrash()
-        }
-    }
-
     private func isAncestor(_ ancestor: Int32, of node: Int32, in tree: ScanTree) -> Bool {
         var cursor = tree.node(node).parent
         while cursor >= 0 {
@@ -94,6 +81,6 @@ extension AppModel {
     func resetCollection() {
         collection = []
         showCollection = false
-        showCollectionTrashConfirmation = false
+        trash.showCollectionConfirmation = false
     }
 }

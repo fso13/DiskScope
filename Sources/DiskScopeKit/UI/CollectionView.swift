@@ -38,9 +38,9 @@ struct CollectionView: View {
         }
         .frame(width: 680, height: 570)
         .background(Theme.background)
-        .alert("Переместить коллекцию в Корзину?", isPresented: $model.showCollectionTrashConfirmation) {
+        .alert("Переместить коллекцию в Корзину?", isPresented: $model.trash.showCollectionConfirmation) {
             Button("Отмена", role: .cancel) {}
-            Button("В Корзину", role: .destructive) { model.confirmCollectionTrash() }
+            Button("В Корзину", role: .destructive) { model.trashOperations.confirmCollection() }
         } message: {
             Text(model.collectionTrashMessage)
         }
@@ -83,10 +83,10 @@ struct CollectionView: View {
             Spacer()
 
             AccentButton(title: "В Корзину…", symbol: "trash") {
-                model.requestTrashCollection()
+                model.trashOperations.requestCollection()
             }
-            .disabled(!model.canTrashCollection)
-            .opacity(model.canTrashCollection ? 1 : 0.45)
+            .disabled(!model.trashOperations.canTrashCollection)
+            .opacity(model.trashOperations.canTrashCollection ? 1 : 0.45)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

@@ -149,7 +149,7 @@ struct LargestFilesView: View {
                 Divider()
                 Button("Переместить в Корзину…", role: .destructive) {
                     model.selection = selection
-                    model.requestTrashSelection()
+                    model.trashOperations.requestSelection()
                 }
             }
         } primaryAction: { selection in
