@@ -388,3 +388,19 @@
 
 "Параллельный обход каталогов" = "Parallel directory traversal";
 "Верхнеуровневые папки сканируются одновременно. Отключите для диагностики или на медленном диске." = "Top-level folders are scanned concurrently. Turn off for diagnostics or a slow disk.";
+
+"Лимиты папок" = "Folder limits";
+"Лимит показывается в инспекторе папки и отмечается на карте. Предупреждение появляется один раз после скана." = "The limit appears in the folder inspector and on the map. A warning is shown once after a scan.";
+"Путь к папке" = "Folder path";
+"Выбрать…" = "Choose…";
+"Например, 10 GB" = "For example, 10 GB";
+"Добавить" = "Add";
+"Укажите папку и положительный размер, например 10 GB." = "Choose a folder and a positive size, for example 10 GB.";
+"Лимит папки" = "Folder limit";
+"Удалить" = "Remove";
+"Задать лимит…" = "Set a limit…";
+"Сохранить" = "Save";
+"Превышено на" = "Over by";
+"Осталось" = "Remaining";
+" с прошлого скана" = " since the previous scan";
+"Лимит превышен: " = "Limit exceeded: ";

@@ -10,6 +10,10 @@ public struct SettingsView: View {
     @AppStorage(AppSettingsKeys.parallelTraversal) private var parallelTraversal = true
     @StateObject private var updater = UpdateChecker()
     @State private var cacheCleared = false
+    @State private var budgets = FolderBudgetStore.load()
+    @State private var budgetPath = ""
+    @State private var budgetLimit = "10 GB"
+    @State private var budgetError = false
 
     public init() {}
 
@@ -22,6 +26,7 @@ public struct SettingsView: View {
                     languageSection
                     menuBarSection
                     scanningSection
+                    budgetSection
                     updatesSection
                     aboutSection
                     resetRow
@@ -196,6 +201,92 @@ public struct SettingsView: View {
                 .controlSize(.small)
                 .disabled(cacheCleared)
             }
+        }
+    }
+
+    private var budgetSection: some View {
+        SettingsCard(title: "Лимиты папок", symbol: "gauge.with.dots.needle.67percent") {
+            Text("Лимит показывается в инспекторе папки и отмечается на карте. Предупреждение появляется один раз после скана.")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(budgets) { budget in
+                HStack(spacing: 7) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(URL(fileURLWithPath: budget.path).lastPathComponent)
+                            .font(.system(size: 11, weight: .medium))
+                            .lineLimit(1)
+                        Text(budget.path)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer(minLength: 4)
+                    Text(ByteFormat.string(budget.limitBytes))
+                        .font(.system(size: 10, weight: .medium))
+                        .monospacedDigit()
+                    Button {
+                        FolderBudgetStore.remove(path: budget.path)
+                        budgets = FolderBudgetStore.load()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 9))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 3)
+            }
+
+            Divider().overlay(Theme.border)
+
+            HStack(spacing: 6) {
+                TextField("Путь к папке", text: $budgetPath)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 10))
+                Button("Выбрать…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    panel.allowsMultipleSelection = false
+                    if panel.runModal() == .OK, let url = panel.url {
+                        budgetPath = url.path
+                    }
+                }
+                .controlSize(.small)
+            }
+            HStack(spacing: 6) {
+                TextField("Например, 10 GB", text: $budgetLimit)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 10))
+                    .frame(width: 130)
+                Button("Добавить") {
+                    guard !budgetPath.trimmingCharacters(in: .whitespaces).isEmpty,
+                          let bytes = ByteSize.parse(budgetLimit),
+                          bytes > 0 else {
+                        budgetError = true
+                        return
+                    }
+                    FolderBudgetStore.upsert(path: budgetPath, limitBytes: bytes)
+                    budgets = FolderBudgetStore.load()
+                    budgetPath = ""
+                    budgetLimit = "10 GB"
+                    budgetError = false
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                Spacer()
+            }
+            if budgetError {
+                Text("Укажите папку и положительный размер, например 10 GB.")
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.red)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .folderBudgetsChanged)) { _ in
+            budgets = FolderBudgetStore.load()
         }
     }
 

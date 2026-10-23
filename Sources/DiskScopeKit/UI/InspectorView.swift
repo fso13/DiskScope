@@ -110,6 +110,8 @@ private struct InspectorDetails: View {
     @EnvironmentObject private var model: AppModel
     let index: Int32
     @State private var metadata: FileMetadata?
+    @State private var budgetEditing = false
+    @State private var budgetText = ""
 
     private var tree: ScanTree? { model.tree }
     private var node: ScanNode? {
@@ -125,6 +127,9 @@ private struct InspectorDetails: View {
                     aggregateNote
                 } else {
                     sizes
+                    if node?.nodeKind.isContainer == true {
+                        budgetSection
+                    }
                     dates
                     details
                     actions
@@ -184,6 +189,103 @@ private struct InspectorDetails: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(9)
         .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: 9))
+    }
+
+    private var budgetSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("Лимит папки")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.4)
+                Spacer()
+                if model.folderBudget(forPath: tree?.path(of: index) ?? "") != nil {
+                    Button("Удалить") {
+                        if let path = tree?.path(of: index) {
+                            model.removeFolderBudget(path: path)
+                        }
+                        budgetEditing = false
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.red)
+                }
+            }
+
+            if let status = model.folderBudgetStatus(forNode: index) {
+                ProgressBar(
+                    fraction: status.fraction,
+                    tint: status.exceeded
+                        ? AnyShapeStyle(LinearGradient(colors: [.red, .orange], startPoint: .leading, endPoint: .trailing))
+                        : AnyShapeStyle(LinearGradient(colors: [Theme.accent, Theme.accentDeep], startPoint: .leading, endPoint: .trailing))
+                )
+                HStack(spacing: 4) {
+                    Text("\(ByteFormat.string(status.currentBytes)) из \(ByteFormat.string(status.budget.limitBytes))")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 2)
+                    Text(ByteFormat.percent(status.currentBytes, of: status.budget.limitBytes))
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(status.exceeded ? .red : .secondary)
+                }
+                if status.exceeded {
+                    Text("Превышено на \(ByteFormat.string(status.overBy))")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.red)
+                } else {
+                    Text("Осталось \(ByteFormat.string(status.remainingBytes))")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                if let delta = model.folderBudgetDelta(forPath: status.budget.path), delta != 0 {
+                    Text(
+                        (delta > 0 ? "+" : "−") + ByteFormat.string(abs(delta))
+                            + (L10n.isEnglish ? " since the previous scan" : " с прошлого скана")
+                    )
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(delta > 0 ? .orange : .green)
+                }
+                Button(budgetEditing ? "Отмена" : "Изменить") {
+                    budgetEditing.toggle()
+                    if budgetEditing { budgetText = "\(status.budget.limitBytes)" }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(Theme.accent)
+            } else {
+                Button("Задать лимит…") {
+                    budgetEditing = true
+                    budgetText = "10 GB"
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.accent)
+            }
+
+            if budgetEditing {
+                HStack(spacing: 5) {
+                    TextField("Например, 10 GB", text: $budgetText)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 10))
+                    Button("Сохранить") {
+                        guard let path = tree?.path(of: index),
+                              let bytes = ByteSize.parse(budgetText),
+                              bytes > 0 else { return }
+                        model.setFolderBudget(path: path, limitBytes: bytes)
+                        budgetEditing = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(9)
+        .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: 9))
+        .onChange(of: index) { _, _ in
+            budgetEditing = false
+            budgetText = ""
+        }
     }
 
     private var dates: some View {
