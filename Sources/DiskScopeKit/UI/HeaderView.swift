@@ -22,7 +22,7 @@ struct HeaderView: View {
                 SegmentedTabs(selection: $model.tab)
                 Spacer(minLength: 8)
                 if model.tab == .map || model.tab == .largest {
-                    SearchField(text: $model.searchText)
+                    SearchField(text: $model.nav.searchText)
                 }
                 if showsFileChrome, let filter = model.categoryFilter {
                     CategoryFilterChip(category: filter) {

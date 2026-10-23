@@ -60,7 +60,7 @@ struct LargestFilesView: View {
     }
 
     private var table: some View {
-        Table(rows, selection: $model.selection, sortOrder: $sortOrder) {
+        Table(rows, selection: $model.nav.selection, sortOrder: $sortOrder) {
             TableColumn("Имя", value: \.name) { row in
                 HStack(spacing: 8) {
                     NodeIcon(category: row.category, isContainer: row.isContainer, size: 21)

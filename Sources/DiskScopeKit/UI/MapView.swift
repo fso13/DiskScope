@@ -5,7 +5,7 @@ struct ChildrenTable: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        Table(model.currentRows, selection: $model.selection, sortOrder: $model.sortOrder) {
+        Table(model.currentRows, selection: $model.nav.selection, sortOrder: $model.nav.sortOrder) {
             TableColumn("Имя", value: \.name) { row in
                 nameCell(row)
             }

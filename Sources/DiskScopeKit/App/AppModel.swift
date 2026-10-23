@@ -76,7 +76,7 @@ public final class AppModel: ObservableObject {
     }
 
     @Published public internal(set) var scan: ScanController
-    @Published public private(set) var currentIndex: Int32 = 0
+    @Published public internal(set) var nav = NavigationModel()
     @Published public var tab: Tab = .map {
         didSet {
             if tab == .cleanup {
@@ -84,7 +84,6 @@ public final class AppModel: ObservableObject {
             }
         }
     }
-    @Published public var selection: Set<Int32> = []
 
     @Published public private(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
     @Published public private(set) var fileCount = 0
@@ -92,14 +91,7 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var largestItems: [ItemRow] = []
     @Published public private(set) var categoryStats: [CategoryStat] = []
     @Published public private(set) var media = MediaModel()
-    @Published public private(set) var currentRows: [ItemRow] = []
-    @Published public private(set) var currentRowsTotal = 0
-    @Published public private(set) var currentRowsTruncated = false
-    @Published public var searchText = "" { didSet { rebuildCurrentRows() } }
-    @Published public var sortOrder: [KeyPathComparator<ItemRow>] = [KeyPathComparator(\.size, order: .reverse)] {
-        didSet { rebuildCurrentRows() }
-    }
-    @Published public var categoryFilter: FileCategory?
+
     @Published public var toast: Toast?
     @Published public var errorMessage: String?
     @Published public var showCommandPalette = false
@@ -120,7 +112,6 @@ public final class AppModel: ObservableObject {
 
     private var toastWorkItem: DispatchWorkItem?
     private var derivedGeneration = 0
-    private let rowLimit = 2500
     private var cleanupCancellable: AnyCancellable?
     private var diskCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
@@ -165,6 +156,10 @@ public final class AppModel: ObservableObject {
         }.store(in: &cancellables)
         similar.attach { [weak self] in self?.tree }
         similar.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        nav.attach { [weak self] in self?.tree }
+        nav.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         trash.objectWillChange.sink { [weak self] _ in
@@ -220,6 +215,35 @@ public final class AppModel: ObservableObject {
     public var showCollectionTrashConfirmation: Bool {
         get { trash.showCollectionConfirmation }
         set { trash.showCollectionConfirmation = newValue }
+    }
+
+    public var currentIndex: Int32 {
+        get { nav.currentIndex }
+        set { nav.currentIndex = newValue }
+    }
+
+    public var selection: Set<Int32> {
+        get { nav.selection }
+        set { nav.selection = newValue }
+    }
+
+    public var currentRows: [ItemRow] { nav.rows }
+    public var currentRowsTotal: Int { nav.rowsTotal }
+    public var currentRowsTruncated: Bool { nav.rowsTruncated }
+
+    public var searchText: String {
+        get { nav.searchText }
+        set { nav.searchText = newValue }
+    }
+
+    public var sortOrder: [KeyPathComparator<ItemRow>] {
+        get { nav.sortOrder }
+        set { nav.sortOrder = newValue }
+    }
+
+    public var categoryFilter: FileCategory? {
+        get { nav.categoryFilter }
+        set { nav.categoryFilter = newValue }
     }
 
     // MARK: - Derived state
@@ -304,13 +328,12 @@ public final class AppModel: ObservableObject {
 
     private func finishScan(_ result: ScanTree) {
         scan.finish(result)
-        currentIndex = 0
-        selection = []
+        nav.reset()
         tab = .map
         fileCount = result.totalFiles
         folderCount = result.directoryCount()
         refreshVolumes()
-        rebuildCurrentRows()
+        nav.rebuild()
         refreshDerived()
         history.record(result)
         notifyExceededBudgets(result)
@@ -347,25 +370,17 @@ public final class AppModel: ObservableObject {
     // MARK: - Navigation
 
     public func navigate(to index: Int32) {
-        guard let tree, index >= 0, Int(index) < tree.count, !tree.isDeleted(index) else { return }
-        guard tree.node(index).nodeKind.isContainer else { return }
-        currentIndex = index
-        selection = []
-        searchText = ""
-        rebuildCurrentRows()
+        nav.navigate(to: index)
     }
 
     public func goUp() {
-        guard let tree else { return }
-        let parent = tree.node(currentIndex).parent
-        if parent >= 0 { navigate(to: parent) }
+        nav.goUp()
     }
 
     public func goToRoot() {
-        navigate(to: 0)
+        nav.navigate(to: 0)
     }
 
-    /// Double-click / Enter behaviour: folders open, everything else is revealed in Finder.
     public func activateRow(_ index: Int32) {
         guard let tree, index >= 0, Int(index) < tree.count else { return }
         guard tree.node(index).nodeKind != .aggregate else { return }
@@ -710,44 +725,18 @@ public final class AppModel: ObservableObject {
     // MARK: - Table rows
 
     public func rebuildCurrentRows() {
-        guard let tree, Int(currentIndex) < tree.count else {
-            currentRows = []
-            currentRowsTotal = 0
-            currentRowsTruncated = false
-            return
-        }
-        let parentSize = max(tree.node(currentIndex).size, 1)
-        var indices = tree.children(of: currentIndex)
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !query.isEmpty {
-            indices = indices.filter {
-                tree.name(of: $0).localizedCaseInsensitiveContains(query)
-            }
-        }
-        var rows: [ItemRow] = []
-        rows.reserveCapacity(min(indices.count, rowLimit))
-        for index in indices {
-            // Paths are only needed by the "largest" list; skip them here to keep
-            // huge folders (node_modules and friends) responsive.
-            rows.append(ItemRowFactory.make(tree: tree, index: index, parentSize: parentSize, includePaths: false))
-        }
-        rows.sort(using: sortOrder)
-        currentRowsTotal = rows.count
-        currentRowsTruncated = rows.count > rowLimit
-        if rows.count > rowLimit { rows = Array(rows.prefix(rowLimit)) }
-        currentRows = rows
+        nav.rebuild()
     }
 
     // MARK: - Type filter
 
     public func showFiles(of category: FileCategory) {
-        categoryFilter = category
         tab = .largest
-        searchText = ""
+        nav.showFiles(of: category)
     }
 
     public func clearCategoryFilter() {
-        categoryFilter = nil
+        nav.clearCategoryFilter()
     }
 
     // MARK: - Permissions
