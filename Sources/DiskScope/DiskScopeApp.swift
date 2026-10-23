@@ -42,21 +42,21 @@ struct DiskScopeApp: App {
             CommandGroup(after: .saveItem) {
                 Menu("Экспортировать отчёт") {
                     Button("CSV — текущая папка") {
-                        model.exportReport(format: .csv, scope: .currentFolder)
+                        model.report.exportReport(format: .csv, scope: .currentFolder)
                     }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
                     Button("HTML — текущая папка") {
-                        model.exportReport(format: .html, scope: .currentFolder)
+                        model.report.exportReport(format: .html, scope: .currentFolder)
                     }
                     Divider()
                     Button("CSV — весь скан") {
-                        model.exportReport(format: .csv, scope: .wholeScan)
+                        model.report.exportReport(format: .csv, scope: .wholeScan)
                     }
                     Button("HTML — весь скан") {
-                        model.exportReport(format: .html, scope: .wholeScan)
+                        model.report.exportReport(format: .html, scope: .wholeScan)
                     }
                 }
-                .disabled(model.tree == nil)
+                .disabled(!model.report.canExportReport)
             }
 
             CommandMenu("Диск") {
