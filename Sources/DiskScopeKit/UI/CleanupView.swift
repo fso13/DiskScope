@@ -3,12 +3,14 @@ import SwiftUI
 struct CleanupView: View {
     @EnvironmentObject private var model: AppModel
     @State private var targetGB: Double = 10
+    @AppStorage(AppSettingsKeys.staleMonths) private var staleMonths = 12
 
     private var suggestions: [CleanupSuggestion] { model.cleanupSuggestions }
+    private var staleItems: [CleanupSuggestion] { model.staleSuggestions }
 
     private var groups: [(risk: CleanupRisk, items: [CleanupSuggestion])] {
         CleanupRisk.allCases.compactMap { risk in
-            let items = suggestions.filter { $0.risk == risk }
+            let items = suggestions.filter { $0.risk == risk && $0.ruleID != "stale" }
             return items.isEmpty ? nil : (risk, items)
         }
     }
@@ -125,12 +127,90 @@ struct CleanupView: View {
         } else {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 16) {
+                    if !staleItems.isEmpty {
+                        staleSection
+                    }
                     ForEach(groups, id: \.risk) { group in
                         section(risk: group.risk, items: group.items)
                     }
                 }
                 .padding(14)
             }
+        }
+    }
+
+    private var staleSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.warning)
+                Text("Заброшенные файлы")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("\(model.staleResult.totalFiles)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Theme.subtleFill, in: Capsule())
+                Spacer()
+                Text(ByteFormat.string(model.staleResult.totalBytes))
+                    .font(.system(size: 10.5, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Picker("Месяцев", selection: $staleMonths) {
+                    Text("6 мес.").tag(6)
+                    Text("12 мес.").tag(12)
+                    Text("24 мес.").tag(24)
+                    Text("36 мес.").tag(36)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 92)
+                .onChange(of: staleMonths) { _, newValue in
+                    model.setStaleMonths(newValue)
+                }
+            }
+            .padding(.horizontal, 4)
+
+            Text("Файлы крупнее 10 МБ без изменений дольше выбранного срока. Системные пути, пакеты, .git, node_modules и библиотеки исключены.")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+
+            VStack(spacing: 1) {
+                ForEach(staleItems.prefix(20)) { suggestion in
+                    CleanupRow(
+                        suggestion: suggestion,
+                        isSelected: model.cleanupSelection.contains(suggestion.id),
+                        onToggle: { model.toggleCleanupSelection(suggestion.id) },
+                        onReveal: { model.reveal(indices: [suggestion.nodeIndex]) }
+                    )
+                }
+            }
+            .padding(3)
+            .background(Theme.subtleFill.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Theme.border, lineWidth: 1)
+            )
+
+            HStack(spacing: 8) {
+                Button("Выбрать топ-20") {
+                    model.selectCleanup(Array(staleItems.prefix(20)))
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                if model.staleResult.truncated {
+                    Text("Показаны 20 из \(model.staleResult.totalFiles)")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 4)
         }
     }
 

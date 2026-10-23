@@ -404,3 +404,12 @@
 "Осталось" = "Remaining";
 " с прошлого скана" = " since the previous scan";
 "Лимит превышен: " = "Limit exceeded: ";
+
+"Заброшенные файлы" = "Stale files";
+"Месяцев" = "Months";
+"6 мес." = "6 mo.";
+"12 мес." = "12 mo.";
+"24 мес." = "24 mo.";
+"36 мес." = "36 mo.";
+"Файлы крупнее 10 МБ без изменений дольше выбранного срока. Системные пути, пакеты, .git, node_modules и библиотеки исключены." = "Files larger than 10 MB not modified for longer than the selected period. System paths, packages, .git, node_modules and libraries are excluded.";
+"Выбрать топ-20" = "Select top 20";

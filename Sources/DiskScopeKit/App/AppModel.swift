@@ -107,9 +107,10 @@ public final class AppModel: ObservableObject {
     @Published public var showTrashConfirmation = false
     @Published public var showPermissionSheet = false
     @Published public private(set) var canUndoTrash = false
-    @Published public private(set) var cleanupSuggestions: [CleanupSuggestion] = []
+    @Published public internal(set) var cleanupSuggestions: [CleanupSuggestion] = []
+    @Published public internal(set) var staleResult: StaleResult = .empty
     @Published public var cleanupSelection: Set<String> = []
-    @Published public private(set) var cleanupLoading = false
+    @Published public internal(set) var cleanupLoading = false
     @Published public var showCleanupConfirmation = false
     @Published public private(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
@@ -178,8 +179,8 @@ public final class AppModel: ObservableObject {
     private let rowLimit = 2500
     private var trashUndoStack: [TrashUndoEntry] = []
     private var fileOperationInFlight = false
-    private var cleanupGeneration = 0
-    private var cleanupTreeID: ObjectIdentifier?
+    var cleanupGeneration = 0
+    var cleanupTreeID: ObjectIdentifier?
     private var searchIndex: ScanSearchIndex?
     private var searchIndexGeneration = 0
     private var searchQueryGeneration = 0
@@ -193,6 +194,7 @@ public final class AppModel: ObservableObject {
             AppSettingsKeys.menuBarMonitor: false,
             AppSettingsKeys.menuBarDisplay: MenuBarDisplayMode.free.rawValue,
             AppSettingsKeys.parallelTraversal: true,
+            AppSettingsKeys.staleMonths: 12,
         ])
         scanHistory = ScanHistoryStore().load()
         folderBudgets = FolderBudgetStore.load()
@@ -639,41 +641,6 @@ public final class AppModel: ObservableObject {
 
     // MARK: - Cleanup
 
-    public func loadCleanupSuggestionsIfNeeded() {
-        guard let tree, cleanupTreeID != ObjectIdentifier(tree) else { return }
-        loadCleanupSuggestions()
-    }
-
-    public func loadCleanupSuggestions() {
-        guard let tree else {
-            resetCleanup()
-            return
-        }
-        cleanupGeneration += 1
-        let generation = cleanupGeneration
-        cleanupTreeID = ObjectIdentifier(tree)
-        cleanupLoading = true
-
-        let environment = CleanupEnvironment(
-            homePath: homePath,
-            runningBundleIdentifiers: runningBundleIdentifiers()
-        )
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let suggestions = CleanupAdvisor.recommend(tree: tree, environment: environment)
-            DispatchQueue.main.async {
-                guard let self,
-                      self.cleanupGeneration == generation,
-                      let current = self.tree,
-                      current === tree else { return }
-                self.cleanupSuggestions = suggestions
-                self.cleanupSelection = Set(
-                    suggestions.filter { $0.isSelectedByDefault }.map(\.id)
-                )
-                self.cleanupLoading = false
-            }
-        }
-    }
-
     public func requestCleanup() {
         guard cleanupCanApply else { return }
         if cleanupHasPermanentSelection
@@ -772,9 +739,10 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    private func resetCleanup() {
+    func resetCleanup() {
         cleanupGeneration += 1
         cleanupSuggestions = []
+        staleResult = .empty
         cleanupSelection = []
         cleanupLoading = false
         cleanupTreeID = nil
@@ -924,6 +892,7 @@ public final class AppModel: ObservableObject {
     public func previewCleanup(suggestions: [CleanupSuggestion]) {
         cleanupGeneration += 1
         cleanupSuggestions = suggestions
+        staleResult = .empty
         cleanupSelection = Set(suggestions.filter { $0.isSelectedByDefault }.map(\.id))
         cleanupLoading = false
         cleanupTreeID = tree.map { ObjectIdentifier($0) }
@@ -1032,8 +1001,13 @@ extension AppModel {
         cleanupSelectedSuggestions.count
     }
 
+    public var staleSuggestions: [CleanupSuggestion] {
+        cleanupSuggestions.filter { $0.ruleID == "stale" }
+    }
+
     public var cleanupTotalSize: Int64 {
-        cleanupSuggestions.reduce(Int64(0)) { $0 + $1.size }
+        cleanupSuggestions.filter { $0.ruleID != "stale" }.reduce(Int64(0)) { $0 + $1.size }
+            + staleResult.totalBytes
     }
 
     public var cleanupCanApply: Bool {
@@ -1369,7 +1343,7 @@ extension AppModel {
 }
 
 extension AppModel {
-    private func runningBundleIdentifiers() -> Set<String> {
+    func runningBundleIdentifiers() -> Set<String> {
         Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
     }
 

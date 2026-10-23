@@ -65,6 +65,7 @@ nav:
   - Кэш дерева: scan-cache.md
   - Параллельный обход: parallel-scan.md
   - Бюджеты папок: folder-budgets.md
+  - Заброшенные файлы: stale-files.md
   - Правила очистки: cleanup-rules.md
   - Сборка и тесты: build.md
   - Архитектура: architecture.md
