@@ -84,11 +84,11 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    @Published public private(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
-    @Published public private(set) var fileCount = 0
-    @Published public private(set) var folderCount = 0
-    @Published public private(set) var largestItems: [ItemRow] = []
-    @Published public private(set) var categoryStats: [CategoryStat] = []
+    @Published public internal(set) var volumes: [VolumeInfo] = VolumeInfo.loadAll()
+    @Published public internal(set) var fileCount = 0
+    @Published public internal(set) var folderCount = 0
+    @Published public internal(set) var largestItems: [ItemRow] = []
+    @Published public internal(set) var categoryStats: [CategoryStat] = []
     @Published public private(set) var media = MediaModel()
 
     @Published public var toast: Toast?
@@ -106,6 +106,7 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var similar = SimilarModel()
     @Published public internal(set) var inspector = InspectorModel()
     @Published public internal(set) var report = ReportModel()
+    @Published public internal(set) var preview = PreviewModel()
     @Published public var showInspector = false
 
     @Published public internal(set) var budget = BudgetModel()
@@ -204,6 +205,10 @@ public final class AppModel: ObservableObject {
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         media.attach(appModel: self)
+        preview.attach(appModel: self)
+        preview.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
     }
 
     // MARK: - Scan compatibility
@@ -663,10 +668,9 @@ public final class AppModel: ObservableObject {
         )
     }
 
-    private func resetTrashUndo() {
+    func resetTrashUndo() {
         trash.reset()
     }
-
     // MARK: - Cleanup
 
     public func requestCleanup() {
@@ -826,82 +830,6 @@ public final class AppModel: ObservableObject {
     public func dismissToast() {
         toastWorkItem?.cancel()
         toast = nil
-    }
-
-    // MARK: - Previews / snapshots
-
-    public func loadPreview(tree: ScanTree) {
-        scan.invalidate()
-        scan.finish(tree)
-        currentIndex = 0
-        tab = .map
-        selection = []
-        resetTrashUndo()
-        resetCleanup()
-        resetCollection()
-        search.reset()
-        resetDuplicates()
-        resetSimilar()
-        fileCount = tree.totalFiles
-        folderCount = tree.directoryCount()
-        volumes = VolumeInfo.loadAll()
-        rebuildCurrentRows()
-        largestItems = tree.largestItems(limit: 4000).map {
-            ItemRowFactory.make(tree: tree, index: $0, parentSize: max(tree.totalSize, 1), includePaths: true)
-        }
-        categoryStats = tree.categoryStats()
-    }
-
-    /// Fills cleanup state without running the advisor; used by snapshots.
-    public func previewCleanup(suggestions: [CleanupSuggestion]) {
-        cleanup.preview(suggestions)
-    }
-
-    /// Fills similar-image groups without running Vision; used by snapshots.
-    public func previewSimilar(_ groups: [SimilarImageGroup]) {
-        similar.preview(groups)
-    }
-
-    /// Fills duplicate groups without hashing files; used by snapshots.
-    public func previewDuplicates(_ groups: [DuplicateGroup]) {
-        duplicates.preview(groups)
-    }
-
-    /// Fills disk overview state without scanning the real Trash; used by snapshots.
-    public func previewDiskOverview(_ overview: DiskOverview) {
-        disk.preview(overview)
-    }
-
-    public func previewScanning(path: String, progress: ScanProgress) {
-        scan.previewScanning(path: path, progress: progress)
-        currentIndex = 0
-        resetTrashUndo()
-        resetCleanup()
-        resetCollection()
-        search.reset()
-        resetDuplicates()
-        resetSimilar()
-        volumes = VolumeInfo.loadAll()
-    }
-
-    public func previewWelcome() {
-        scan.previewWelcome()
-        currentIndex = 0
-        resetTrashUndo()
-        resetCleanup()
-        resetCollection()
-        search.reset()
-        resetDuplicates()
-        resetSimilar()
-        volumes = VolumeInfo.loadAll()
-    }
-
-    public func previewSelect(index: Int32) {
-        selection = [index]
-    }
-
-    public func previewNavigate(to index: Int32) {
-        navigate(to: index)
     }
 }
 
