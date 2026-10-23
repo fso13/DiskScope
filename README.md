@@ -190,7 +190,7 @@ open dist/DiskScope.dmg
 Для universal-сборки (Apple Silicon + Intel), как в релизах:
 
 ```bash
-VERSION=1.1.1 BUILD_NUMBER=1 UNIVERSAL=1 ./build.sh
+VERSION=2.0.0 BUILD_NUMBER=20 UNIVERSAL=1 ./build.sh
 ```
 
 `VERSION` и `BUILD_NUMBER` подставляются в `Info.plist`; в CI версия берётся из
@@ -332,7 +332,7 @@ python3 -m venv .venv
 Выпуск релиза:
 
 ```bash
-git tag -a v1.1.1 -m "DiskScope 1.1.1"
+git tag -a v2.0.0 -m "DiskScope 2.0.0"
 git push origin v1.1.1
 ```
 

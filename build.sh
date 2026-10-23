@@ -5,9 +5,10 @@ ROOT="$(pwd)"
 CACHE="$ROOT/.cache/clang"
 export CLANG_MODULE_CACHE_PATH="$CACHE"
 
-VERSION="${VERSION:-1.1.1}"
-BUILD_NUMBER="${BUILD_NUMBER:-1}"
+VERSION="${VERSION:-2.0.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-20}"
 UNIVERSAL="${UNIVERSAL:-0}"
+SKIP_DMG="${SKIP_DMG:-0}"
 
 COMMON_FLAGS=(
   --disable-sandbox
@@ -104,27 +105,35 @@ echo "==> Packaging zip"
 rm -f "$ROOT/dist/DiskScope.zip"
 ditto -c -k --keepParent "$APP" "$ROOT/dist/DiskScope.zip"
 
-echo "==> Packaging DMG installer"
-DMG="$ROOT/dist/DiskScope.dmg"
-STAGING="$ROOT/.build/dmg"
-rm -rf "$STAGING" "$DMG"
-mkdir -p "$STAGING/.background"
-ditto "$APP" "$STAGING/DiskScope.app"
-ln -s /Applications "$STAGING/Applications"
-cp "$ROOT/Support/dmg/background.png" "$STAGING/.background/background.png"
-cp "$ROOT/Support/dmg/DS_Store" "$STAGING/.DS_Store"
-if [ -f "$APP/Contents/Resources/AppIcon.icns" ]; then
-  cp "$APP/Contents/Resources/AppIcon.icns" "$STAGING/.VolumeIcon.icns"
-  if command -v SetFile >/dev/null 2>&1; then
-    SetFile -a C "$STAGING"
+if [ "$SKIP_DMG" = "1" ]; then
+  echo "==> Skipping DMG (SKIP_DMG=1)"
+else
+  echo "==> Packaging DMG installer"
+  DMG="$ROOT/dist/DiskScope.dmg"
+  STAGING="$ROOT/.build/dmg"
+  rm -rf "$STAGING" "$DMG"
+  mkdir -p "$STAGING/.background"
+  ditto "$APP" "$STAGING/DiskScope.app"
+  ln -s /Applications "$STAGING/Applications"
+  cp "$ROOT/Support/dmg/background.png" "$STAGING/.background/background.png"
+  cp "$ROOT/Support/dmg/DS_Store" "$STAGING/.DS_Store"
+  if [ -f "$APP/Contents/Resources/AppIcon.icns" ]; then
+    cp "$APP/Contents/Resources/AppIcon.icns" "$STAGING/.VolumeIcon.icns"
+    if command -v SetFile >/dev/null 2>&1; then
+      SetFile -a C "$STAGING"
+    fi
   fi
+  hdiutil create -volname "DiskScope" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+  hdiutil verify "$DMG" >/dev/null
 fi
-hdiutil create -volname "DiskScope" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
-hdiutil verify "$DMG" >/dev/null
 
 echo ""
 echo "Built:   $APP"
 echo "Version: $VERSION ($BUILD_NUMBER)"
 echo "Zip:     $ROOT/dist/DiskScope.zip"
-echo "DMG:     $DMG"
+if [ "$SKIP_DMG" = "1" ]; then
+  echo "DMG:     skipped"
+else
+  echo "DMG:     $DMG"
+fi
 echo "Open:    open \"$APP\""

@@ -82,3 +82,54 @@ jobs:
 
       - name: Build
         run: swift build --disable-sandbox
+
+  tests:
+    name: Tests
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run XCTest with coverage
+        run: swift test --disable-sandbox --enable-code-coverage
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          BIN="$(find .build/out/Products/Debug/DiskScopeKitTests.xctest -type f -perm -111 | head -1)"
+          PROFILE=".build/out/Products/Debug/codecov/default.profdata"
+          if [ -n "$BIN" ] && [ -f "$PROFILE" ]; then
+            xcrun llvm-cov report "$BIN" -instr-profile "$PROFILE"               -ignore-filename-regex='Tests|\.build' > coverage.txt || true
+            tail -1 coverage.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  bundle-smoke:
+    name: Bundle smoke
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build app bundle without DMG
+        env:
+          SKIP_DMG: "1"
+          UNIVERSAL: "0"
+        run: ./build.sh
+
+      - name: Verify bundle
+        run: |
+          test -x dist/DiskScope.app/Contents/MacOS/DiskScope
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" dist/DiskScope.app/Contents/Info.plist
+          test -d dist/DiskScope.app/Contents/Resources/en.lproj
+          codesign --verify --deep --strict dist/DiskScope.app

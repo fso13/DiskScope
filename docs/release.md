@@ -50,8 +50,8 @@
 ## Релиз по тегу
 
 ```bash
-git tag -a v1.1.1 -m "DiskScope 1.1.1"
-git push origin v1.1.1
+git tag -a v2.0.0 -m "DiskScope 1.1.1"
+git push origin v2.0.0
 ```
 
 После этого workflow:
@@ -60,9 +60,9 @@ git push origin v1.1.1
 2. печатает версии macOS, Swift и Xcode;
 3. запускает `swift test`;
 4. собирает universal-приложение (`arm64 + x86_64`) с версией из тега:
-   `VERSION=1.1.1 BUILD_NUMBER=<run number> UNIVERSAL=1 ./build.sh`;
+   `VERSION=2.0.0 BUILD_NUMBER=<run number> UNIVERSAL=1 ./build.sh`;
 5. проверяет `codesign`, `lipo` и версию в `Info.plist`;
-6. достаёт раздел `[1.1.1]` из `CHANGELOG.md` скриптом
+6. достаёт раздел `[2.0.0]` из `CHANGELOG.md` скриптом
    `scripts/release-notes.sh`; если раздела нет — собирает список коммитов из
    git;
 7. добавляет в конец заметок блок «Скачать» с прямыми ссылками на собранные
