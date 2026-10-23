@@ -290,7 +290,7 @@ struct CleanupView: View {
                 model.cleanup.clearSelection()
             }
             AccentButton(title: "Очистить…", symbol: "sparkles") {
-                model.requestCleanup()
+                model.cleanupOperations.request()
             }
             .disabled(!model.cleanup.canApply)
             .opacity(model.cleanup.canApply ? 1 : 0.45)

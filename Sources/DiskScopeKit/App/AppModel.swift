@@ -96,6 +96,7 @@ public final class AppModel: ObservableObject {
     @Published public internal(set) var trash = TrashModel()
     @Published public internal(set) var trashOperations = TrashOperationsModel()
     @Published public internal(set) var cleanup = CleanupModel()
+    @Published public internal(set) var cleanupOperations = CleanupOperationsModel()
     @Published public internal(set) var collection: Set<Int32> = []
     @Published public var showCollection = false
     @Published public internal(set) var search = SearchModel()
@@ -190,6 +191,10 @@ public final class AppModel: ObservableObject {
         }.store(in: &cancellables)
         trashOperations.attach(appModel: self)
         trashOperations.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+        cleanupOperations.attach(appModel: self)
+        cleanupOperations.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }.store(in: &cancellables)
         disk.attach { [weak self] in self?.internalVolume }
@@ -460,109 +465,6 @@ public final class AppModel: ObservableObject {
     }
 
     // MARK: - Cleanup
-
-    public func requestCleanup() {
-        guard cleanup.canApply else { return }
-        if cleanup.hasPermanentSelection
-            || UserDefaults.standard.bool(forKey: AppSettingsKeys.confirmTrash) {
-            cleanup.showConfirmation = true
-        } else {
-            confirmCleanup()
-        }
-    }
-
-    public func confirmCleanup() {
-        cleanup.showConfirmation = false
-        guard !fileOperationInFlight, !isScanning, let tree else { return }
-        let selected = cleanup.selectedSuggestions.filter { suggestion in
-            suggestion.nodeIndex > 0
-                && Int(suggestion.nodeIndex) < tree.count
-                && !tree.isDeleted(suggestion.nodeIndex)
-        }
-        guard !selected.isEmpty else { return }
-        fileOperationInFlight = true
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var trashed: [(index: Int32, original: URL, trashed: URL)] = []
-            var permanent: [Int32] = []
-            var failures: [(url: URL, message: String)] = []
-            for suggestion in selected {
-                let url = URL(fileURLWithPath: suggestion.path)
-                do {
-                    if suggestion.disposition == .deletePermanently {
-                        try FileManager.default.removeItem(at: url)
-                        permanent.append(suggestion.nodeIndex)
-                    } else {
-                        var resultingURL: NSURL?
-                        try FileManager.default.trashItem(at: url, resultingItemURL: &resultingURL)
-                        trashed.append((suggestion.nodeIndex, url, (resultingURL as URL?) ?? url))
-                    }
-                } catch {
-                    failures.append((url, error.localizedDescription))
-                }
-            }
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.applyCleanup(
-                    tree: tree,
-                    trashed: trashed,
-                    permanent: permanent,
-                    failures: failures
-                )
-            }
-        }
-    }
-
-    private func applyCleanup(
-        tree scanTree: ScanTree,
-        trashed: [(index: Int32, original: URL, trashed: URL)],
-        permanent: [Int32],
-        failures: [(url: URL, message: String)]
-    ) {
-        fileOperationInFlight = false
-        let indices = trashed.map(\.index) + permanent
-        guard !indices.isEmpty else {
-            if let failure = failures.first {
-                errorMessage = "Не удалось очистить «\(failure.url.lastPathComponent)»: \(failure.message)"
-            }
-            return
-        }
-
-        let removed = scanTree.removingSubtrees(at: indices)
-        let roots = Array(Set(trashed.map(\.index)))
-        trash.record(
-            removal: removed,
-            trashed: trashed,
-            collectionRoots: roots.filter { collection.contains($0) }
-        )
-        collection = collection.filter { !removed.tree.isDeleted($0) }
-        resetDuplicates()
-        resetSimilar()
-        fileCount = removed.tree.totalFiles
-        folderCount = removed.tree.directoryCount()
-        tree = removed.tree
-        selection = []
-        if removed.tree.isDeleted(currentIndex) {
-            var cursor = currentIndex
-            while cursor > 0, removed.tree.isDeleted(cursor) {
-                cursor = removed.tree.node(cursor).parent
-            }
-            currentIndex = max(cursor, 0)
-        }
-        rebuildCurrentRows()
-        refreshVolumes()
-        stats.refresh()
-        invalidateCleanup()
-
-        var text = "Очищено: \(Plural.items(indices.count)) · \(ByteFormat.string(removed.bytes))"
-        if !permanent.isEmpty {
-            text += " · безвозвратно: \(Plural.items(permanent.count))"
-        }
-        showToast(text, symbol: "sparkles")
-        if let failure = failures.first {
-            errorMessage = "Не удалось очистить «\(failure.url.lastPathComponent)»: \(failure.message)"
-        }
-    }
 
     func resetCleanup() {
         cleanup.reset()
