@@ -333,7 +333,7 @@ python3 -m venv .venv
 
 ```bash
 git tag -a v2.0.0 -m "DiskScope 2.0.0"
-git push origin v1.1.1
+git push origin v2.0.0
 ```
 
 Для GitHub Pages один раз включите **Settings → Pages → Source: GitHub Actions**

@@ -148,7 +148,7 @@ jobs:
           echo "$SPARKLE_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sparkle.key"
           "$TOOL" -f "$RUNNER_TEMP/sparkle.key"
           rm -f "$RUNNER_TEMP/sparkle.key"
-          ./scripts/generate-appcast.sh dist
+          VERSION="$VERSION" ./scripts/generate-appcast.sh dist
 
       - name: Update Homebrew cask
         run: |

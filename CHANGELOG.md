@@ -4,12 +4,12 @@
 [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии — по
 [Semantic Versioning](https://semver.org/lang/ru/).
 
-## [2.0.0] - 2026-10-23
+## [2.0.0] - 2026-10-30
 
 ### Добавлено
 
-- **Платформа 2.0**: локализация RU/EN, Developer ID и нотаризация,
-  Sparkle-обновления, Homebrew cask.
+- **Платформа 2.0**: локализация RU/EN, пайплайн Developer ID и нотаризации,
+  поддержка Sparkle-обновлений, Homebrew cask.
 - **CLI для CI**: JSON-отчёт и бюджет размера с кодом выхода 3.
 - **Автоматизация**: App Intents, Shortcuts и Finder Quick Action.
 - **Доступность**: VoiceOver-метки и клавиатурная навигация по карте.
@@ -21,9 +21,15 @@
 
 ### Техническое
 
-- 129 XCTest; CI запускает тесты и bundle smoke на PR.
+- **AppModel разложен на feature-модели**: 1561 → 497 строк, выделены
+  Search, Cleanup, Disk, Budget, History, ScanController, Trash, Duplicates,
+  Similar, Navigation, Inspector, Report, Preview, DerivedStats,
+  TrashOperations, CleanupOperations и Browser.
+- 165 XCTest; CI запускает тесты и bundle smoke на PR.
 - `SKIP_DMG=1` для быстрой проверки `.app` в CI.
 - Исследование APFS-клонов и предупреждение в UI.
+- Исправлен startup failure release-workflow: `secrets` больше не используются
+  в step-level `if`.
 
 ## [1.1.1] - 2026-10-20
 
